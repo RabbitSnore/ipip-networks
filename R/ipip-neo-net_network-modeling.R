@@ -1,12 +1,16 @@
 ################################################################################
 
-# IPIP-NEO Network Analysis - Modeling
+# IPIP-NEO Network Analysis - Network Modeling vs. Factor Modeling
 
 ################################################################################
 
 # Set up environment -----------------------------------------------------------
 
-packages <- c("tidyverse", "qgraph", "igraph", "psychonetrics", "lavaan")
+packages <- c("tidyverse", 
+              "qgraph", 
+              "igraph", 
+              "psychonetrics", 
+              "lavaan")
 
 lapply(packages, library, character.only = TRUE)
 
@@ -16,17 +20,13 @@ lapply(packages, library, character.only = TRUE)
 
 ipip <- read_csv("data/ipip-neo_cleaned.csv")
 
-# Network modeling -------------------------------------------------------------
+# Network models vs. Factor models ---------------------------------------------
 
 # Procedural set up
 
 train_test_ratio <- c(.50, .50)
 
-set.seed(1111)
-
-seed_list <- round(runif(1000, 1000, 10000))
-
-sample_cutoff <- 500
+sample_cutoff <- 1500
 
 if (!dir.exists("output")) {
   
@@ -330,6 +330,71 @@ n =~ anxiety + anger + depression + self_consciousness + immoderation + vulnerab
 countries <- sort(table(ipip$country), decreasing = TRUE)
 countries <- countries[countries > sample_cutoff]
 
+# Create data table
+
+set.seed(1111)
+
+seed_list <- round(runif(length(countries), 1000, 10000))
+
+## Set up empty vectors
+
+### Sample sizes
+
+n_train        <- rep(NA, length(seed_list))
+n_test         <- rep(NA, length(seed_list))
+
+### Model fit statistics
+
+cfi_network    <- rep(NA, length(seed_list))
+cfi_big_five   <- rep(NA, length(seed_list))
+cfi_bifactor   <- rep(NA, length(seed_list))
+cfi_higher     <- rep(NA, length(seed_list))
+
+tli_network    <- rep(NA, length(seed_list))
+tli_big_five   <- rep(NA, length(seed_list))
+tli_bifactor   <- rep(NA, length(seed_list))
+tli_higher     <- rep(NA, length(seed_list))
+
+rmsea_network  <- rep(NA, length(seed_list))
+rmsea_big_five <- rep(NA, length(seed_list))
+rmsea_bifactor <- rep(NA, length(seed_list))
+rmsea_higher   <- rep(NA, length(seed_list))
+
+bic_network    <- rep(NA, length(seed_list))
+bic_big_five   <- rep(NA, length(seed_list))
+bic_bifactor   <- rep(NA, length(seed_list))
+bic_higher     <- rep(NA, length(seed_list))
+
+### Extracted network model skeletons
+
+omega_list <- vector("list", length(seed_list))
+
+### Data frame
+
+comparison_data <- data.frame(
+  country = names(countries), 
+  n_train,       
+  n_test,
+  cfi_network,   
+  cfi_big_five,  
+  cfi_bifactor,  
+  cfi_higher,    
+  tli_network,   
+  tli_big_five,  
+  tli_bifactor,  
+  tli_higher,    
+  rmsea_network, 
+  rmsea_big_five,
+  rmsea_bifactor,
+  rmsea_higher,
+  bic_network, 
+  bic_big_five,
+  bic_bifactor,
+  bic_higher  
+)
+
+comparison_data$omega_list <- omega_list
+
 # Iterate network analysis over countries
 
 for (i in 1:length(countries)) {
@@ -347,170 +412,176 @@ for (i in 1:length(countries)) {
   
   countries[i] <- nrow(model_data)
   
-  # Set up empty vectors
+  # Split into training and test sets
   
-  ## Sample sizes
+  set.seed(seed_list[i])
   
-  n_train        <- rep(NA, length(seed_list))
-  n_test         <- rep(NA, length(seed_list))
+  training_indices <- sample(1:countries[i], 
+                             size = round(countries[i]*train_test_ratio[1]), 
+                             replace = FALSE)
   
-  ## Extracted network model skeletons
+  training_data    <- model_data[ training_indices, ] 
+  test_data        <- model_data[-training_indices, ] 
   
-  omega_list     <- vector("list", length(seed_list))
+  comparison_data$n_train[i] <- nrow(training_data)
+  comparison_data$n_test[i]  <- nrow(test_data)
   
-  ## Model fit statistics for each test model
+  # Fit training model
   
-  cfi_network    <- rep(NA, length(seed_list))
-  cfi_big_five   <- rep(NA, length(seed_list))
-  cfi_bifactor   <- rep(NA, length(seed_list))
-  cfi_higher     <- rep(NA, length(seed_list))
+  training_network <- EBICglasso(cov(training_data),
+                                 n = nrow(training_data),
+                                 nlambda = 1000,
+                                 lambda.min.ratio = 0.01,
+                                 returnAllResults = TRUE)
   
-  tli_network    <- rep(NA, length(seed_list))
-  tli_big_five   <- rep(NA, length(seed_list))
-  tli_bifactor   <- rep(NA, length(seed_list))
-  tli_higher     <- rep(NA, length(seed_list))
+  ## Repeat training fit if sparsity may be violated
   
-  rmsea_network  <- rep(NA, length(seed_list))
-  rmsea_big_five <- rep(NA, length(seed_list))
-  rmsea_bifactor <- rep(NA, length(seed_list))
-  rmsea_higher   <- rep(NA, length(seed_list))
+  lambda_index <- which(training_network$ebic == min(training_network$ebic))
+  lambda_opt   <- training_network$lambda[lambda_index]
   
-  bic_network    <- rep(NA, length(seed_list))
-  bic_big_five   <- rep(NA, length(seed_list))
-  bic_bifactor   <- rep(NA, length(seed_list))
-  bic_higher     <- rep(NA, length(seed_list))
-  
-  ## Create data table
-  
-  comparison_data <- data.frame(
-    country = country_current, 
-    n_train,       
-    n_test,
-    cfi_network,   
-    cfi_big_five,  
-    cfi_bifactor,  
-    cfi_higher,    
-    tli_network,   
-    tli_big_five,  
-    tli_bifactor,  
-    tli_higher,    
-    rmsea_network, 
-    rmsea_big_five,
-    rmsea_bifactor,
-    rmsea_higher,
-    bic_network, 
-    bic_big_five,
-    bic_bifactor,
-    bic_higher  
-  )
-  
-  comparison_data$omega_list <- omega_list
-  
-  for (j in 1:length(seed_list)) {
-    
-    # Split into training and test sets
-    
-    set.seed(seed_list[j])
-    
-    training_indices <- sample(1:countries[i], 
-                               size = round(countries[i]*train_test_ratio[1]), 
-                               replace = FALSE)
-    
-    training_data    <- model_data[ training_indices, ] 
-    test_data        <- model_data[-training_indices, ] 
-    
-    comparison_data$n_train[j] <- nrow(training_data)
-    comparison_data$n_test[j]  <- nrow(test_data)
-    
-    # Fit training model
+  if (lambda_opt == min(training_network$lambda)) {
     
     training_network <- EBICglasso(cov(training_data),
                                    n = nrow(training_data),
-                                   nlambda = 10000,
-                                   threshold = TRUE, 
-                                   lambda.min.ratio = 0.0001)
+                                   nlambda = 10000, # Increase tested lambdas
+                                   lambda.min.ratio = 0.1, # Increase ratio
+                                   returnAllResults = TRUE)
     
-    ## Extract training model skeleton
+    lambda_index <- which(training_network$ebic == min(training_network$ebic))
+    lambda_opt   <- training_network$lambda[lambda_index]
     
-    omega_skeleton <- training_network
+    if (lambda_opt == min(training_network$lambda)) {
+      
+      training_network <- EBICglasso(cov(training_data),
+                                     n = nrow(training_data),
+                                     nlambda = 100000, # Increase tested lambdas
+                                     threshold = TRUE, # Enforce threshold
+                                     lambda.min.ratio = 0.1,
+                                     returnAllResults = TRUE)
+      
+    }
     
-    omega_skeleton[omega_skeleton != 0] <- 1
-    
-    comparison_data$omega_list[[j]] <- omega_skeleton
-    
-    # Fit test model
-    
-    test_network_model <- varcov(data  = test_data,
-                                 type  = "ggm",
-                                 omega = omega_skeleton)
-    
-    test_network <- runmodel(test_network_model)
-    
-    ## Calculate fit indices
-    
-    test_net_fit <- fit(test_network)
-    
-    # Fit five-factor models
-    
-    test_big_five <- cfa(big_five,
-                         data = test_data,
-                         estimator = "ML")
-    
-    test_bifactor <- cfa(bifactor,
-                         data = test_data,
-                         estimator = "ML")
-    
-    test_higher   <- cfa(higher_order,
-                         data = test_data,
-                         estimator  = "ML",
-                         orthogonal.y = TRUE)
-    
-    ## Calculate fit indices
+  }
+  
+  ## Extract training model skeleton
+  
+  omega_skeleton <- training_network$optnet
+  
+  omega_skeleton[omega_skeleton != 0] <- 1
+  
+  comparison_data$omega_list[[i]] <- omega_skeleton
+  
+  # Fit test model
+  
+  test_network <- 
+    varcov(data  = test_data,
+           type  = "ggm",
+           omega = omega_skeleton) %>% 
+    runmodel()
+  
+  ## Calculate fit indices
+  
+  test_net_fit <- fit(test_network)
+  
+  # Fit five-factor models
+  
+  test_big_five <- cfa(big_five,
+                       data = test_data,
+                       estimator = "ML")
+  
+  test_bifactor <- cfa(bifactor,
+                       data = test_data,
+                       estimator = "ML")
+  
+  test_higher   <- cfa(higher_order,
+                       data = test_data,
+                       estimator  = "ML",
+                       orthogonal.y = TRUE)
+  
+  ## Calculate fit indices
+  
+  ### Big Five
+  
+  if (test_big_five@optim$converged == TRUE) {
     
     test_big_five_fit <- fitmeasures(test_big_five, 
                                      fit.measures = c("cfi", "tli", "rmsea", "bic"))
     
-    test_bifactor_fit <- fitmeasures(test_bifactor, 
+  } else {
+    
+    test_big_five_fit <- c("cfi" = NA, "tli" = NA, "rmsea" = NA, "bic" = NA)
+    
+  }
+  
+  if (test_big_five@optim$converged == TRUE) {
+    
+    test_big_five_fit <- fitmeasures(test_big_five, 
                                      fit.measures = c("cfi", "tli", "rmsea", "bic"))
+    
+  } else {
+    
+    test_big_five_fit <- c("cfi" = NA, "tli" = NA, "rmsea" = NA, "bic" = NA)
+    
+  }
+  
+  ### Bifactor
+  
+  if (test_bifactor@optim$converged == TRUE) {
+    
+    test_bifactor_fit <- fitmeasures(test_bifactor, 
+                                   fit.measures = c("cfi", "tli", "rmsea", "bic"))
+    
+  } else {
+    
+    test_bifactor_fit <- c("cfi" = NA, "tli" = NA, "rmsea" = NA, "bic" = NA)
+    
+  }
+  
+  ### Higher Order
+  
+  if (test_higher@optim$converged == TRUE) {
     
     test_higher_fit <- fitmeasures(test_higher, 
                                    fit.measures = c("cfi", "tli", "rmsea", "bic"))
     
-    # Record fit indices
+  } else {
     
-    comparison_data$cfi_network[j]    <- test_net_fit$Value[test_net_fit$Measure == "cfi"]
-    comparison_data$cfi_big_five[j]   <- test_big_five_fit[names(test_big_five_fit) == "cfi"]
-    comparison_data$cfi_bifactor[j]   <- test_bifactor_fit[names(test_bifactor_fit) == "cfi"]
-    comparison_data$cfi_higher[j]     <- test_higher_fit[names(test_higher_fit) == "cfi"]
-    
-    comparison_data$tli_network[j]    <- test_net_fit$Value[test_net_fit$Measure == "tli"]
-    comparison_data$tli_big_five[j]   <- test_big_five_fit[names(test_big_five_fit) == "tli"]
-    comparison_data$tli_bifactor[j]   <- test_bifactor_fit[names(test_bifactor_fit) == "tli"]
-    comparison_data$tli_higher[j]     <- test_higher_fit[names(test_higher_fit) == "tli"]
-    
-    comparison_data$rmsea_network[j]  <- test_net_fit$Value[test_net_fit$Measure == "rmsea"]
-    comparison_data$rmsea_big_five[j] <- test_big_five_fit[names(test_big_five_fit) == "rmsea"]
-    comparison_data$rmsea_bifactor[j] <- test_bifactor_fit[names(test_bifactor_fit) == "rmsea"]
-    comparison_data$rmsea_higher[j]   <- test_higher_fit[names(test_higher_fit) == "rmsea"]
-    
-    comparison_data$bic_network[j]    <- test_net_fit$Value[test_net_fit$Measure == "bic"]
-    comparison_data$bic_big_five[j]   <- test_big_five_fit[names(test_big_five_fit) == "bic"]
-    comparison_data$bic_bifactor[j]   <- test_bifactor_fit[names(test_bifactor_fit) == "bic"]
-    comparison_data$bic_higher[j]     <- test_higher_fit[names(test_higher_fit) == "bic"]
-    
-    # Save current iteration
-    
-    assign(paste("comparison_data", country_current, sep =""),
-           value = comparison_data)
-    
-    write_rds(get(paste("comparison_data", country_current, sep ="")), 
-              file = paste("output/ipip-neo_",
-                           country_current,
-                           "_model-comparison-data.rds", 
-                           sep = ""))
+    test_higher_fit <- c("cfi" = NA, "tli" = NA, "rmsea" = NA, "bic" = NA)
     
   }
+  
+  # Record fit indices
+  
+  comparison_data$cfi_network[i]    <- test_net_fit$Value[test_net_fit$Measure == "cfi"]
+  comparison_data$cfi_big_five[i]   <- test_big_five_fit[names(test_big_five_fit) == "cfi"]
+  comparison_data$cfi_bifactor[i]   <- test_bifactor_fit[names(test_bifactor_fit) == "cfi"]
+  comparison_data$cfi_higher[i]     <- test_higher_fit[names(test_higher_fit) == "cfi"]
+  
+  comparison_data$tli_network[i]    <- test_net_fit$Value[test_net_fit$Measure == "tli"]
+  comparison_data$tli_big_five[i]   <- test_big_five_fit[names(test_big_five_fit) == "tli"]
+  comparison_data$tli_bifactor[i]   <- test_bifactor_fit[names(test_bifactor_fit) == "tli"]
+  comparison_data$tli_higher[i]     <- test_higher_fit[names(test_higher_fit) == "tli"]
+  
+  comparison_data$rmsea_network[i]  <- test_net_fit$Value[test_net_fit$Measure == "rmsea"]
+  comparison_data$rmsea_big_five[i] <- test_big_five_fit[names(test_big_five_fit) == "rmsea"]
+  comparison_data$rmsea_bifactor[i] <- test_bifactor_fit[names(test_bifactor_fit) == "rmsea"]
+  comparison_data$rmsea_higher[i]   <- test_higher_fit[names(test_higher_fit) == "rmsea"]
+  
+  comparison_data$bic_network[i]    <- test_net_fit$Value[test_net_fit$Measure == "bic"]
+  comparison_data$bic_big_five[i]   <- test_big_five_fit[names(test_big_five_fit) == "bic"]
+  comparison_data$bic_bifactor[i]   <- test_bifactor_fit[names(test_bifactor_fit) == "bic"]
+  comparison_data$bic_higher[i]     <- test_higher_fit[names(test_higher_fit) == "bic"]
+  
+  # Save current iteration
+  
+  write_rds(comparison_data, 
+            file = "output/ipip-neo_model-comparison-data.rds")
     
+
 }
 
-  
+# Export simplified output
+
+write_csv(comparison_data %>% 
+            select(-omega_list),
+          file = "output/ipip-neo_model-comparison-data.csv")
