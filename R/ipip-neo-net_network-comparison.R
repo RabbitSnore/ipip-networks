@@ -35,7 +35,11 @@ ipip_comparison <- read_rds("output/ipip-neo_model-comparison-data.rds")
 
 countries <- ipip_comparison$country
 
-country_pairs <- combn(countries, 2, simplify = TRUE)
+country_pairs <- combn(countries, 2) %>%
+  t() %>% 
+  as.data.frame()
+
+colnames(country_pairs) <- c("country_1", "country_2")
 
 nct_iterations <- 100
 
@@ -45,33 +49,69 @@ cores <- detectCores()
 
 registerDoParallel(cores)
 
-# Network comparison tests
+# Fit confirmatory models
 
-foreach(i = 1:length(country_pairs), .combine = bind_rows) %dopar% {
+# This loop will fit a confirmatory network (i.e., the same network used for the
+# network vs. factor comparisons) for each country, using the full data set for
+# that country (excluding incomplete cases), instead of the just the training or
+# test sets. This process is computationally intensive and is set up for
+# parallel computation using all available cores.
+
+confirmatory_networks <- foreach(i = 1:length(countries), .packages = packages) %dopar% {
+  
+  # Retrieve omega matrix skeleton
+  
+  omega_skeleton <- ipip_comparison$omega_list[ipip_comparison$country == countries[i]]
   
   # Subset data
+  
+  net_data <- ipip %>% 
+    filter(country == countries[i]) %>% 
+    select(starts_with("i")) %>% 
+    filter(complete.cases(.))
+  
+  # Country-level network
+  
+  country_conf_network <- 
+    varcov(data  = net_data,
+           type  = "ggm",
+           omega = omega_skeleton[[1]]) %>% 
+    runmodel()
+  
+  ## Store networks
+  
+  getmatrix(country_conf_network,
+            matrix = "omega")
+  
+}
+
+names(confirmatory_networks) <- countries
+
+# Network comparison tests
+
+foreach(i = 1:nrow(country_pairs), .combine = bind_rows, .packages = packages) %dopar% {
+  
+  # Subset data
+  
+  country_1 <- country_pairs$country_1[i]
+  country_2 <- country_pairs$country_2[i]
   
   ipip_subset <- ipip %>% 
     filter(country == country_1 | country == country_2) %>% 
     select(country, starts_with("i")) %>% 
     filter(complete.cases(.))
   
-  # Fit confirmatory models
+  # Get skeletons
   
-  ## Retrieve omega matrix skeletons
-  
-  ## Country 1
-  
-  ## Country 2
-  
-  ## Store networks
+  omega_skeleton_1 <- ipip_comparison$omega_list[ipip_comparison$country == country_1]
+  omega_skeleton_2 <- ipip_comparison$omega_list[ipip_comparison$country == country_2]
   
   # Network comparison iterations
   
   nct_structure <- rep(NA, nct_iterations)
   nct_strength  <- rep(NA, nct_iterations)
   
-  foreach(j = 1:nct_iterations, .combine = bind_rows) %dopar% {
+  foreach(j = 1:nct_iterations, .combine = bind_rows, .packages = packages) %dopar% {
     
     # Sample permutation
     
@@ -84,7 +124,7 @@ foreach(i = 1:length(country_pairs), .combine = bind_rows) %dopar% {
                filter(country == country_1) %>% 
                select(starts_with("i")),
              type  = "ggm",
-             omega = omega_skeleton) %>% 
+             omega = omega_skeleton_1[[1]]) %>% 
       runmodel()
     
     ## Country 2
@@ -94,7 +134,7 @@ foreach(i = 1:length(country_pairs), .combine = bind_rows) %dopar% {
                filter(country == country_2) %>% 
                select(starts_with("i")),
              type  = "ggm",
-             omega = omega_skeleton) %>% 
+             omega = omega_skeleton_2[[1]]) %>% 
       runmodel()
     
     # Calculate test statistics
@@ -112,7 +152,9 @@ foreach(i = 1:length(country_pairs), .combine = bind_rows) %dopar% {
   
   # Compute p-values
   
-  # Save network comparison test statistics
+  # Return relevant values
+  
+  
   
 }
 
