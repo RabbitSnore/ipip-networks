@@ -5,7 +5,7 @@ examining Johnson's IPIP-NEO data. The data are available on the Open Science
 Framework:
 
 Johnson, J. A. (2020, October 13). Johnson’s IPIP-NEO data repository. Retrieved
-from osf.io/tbmh5
+from https://osf.io/tbmh5
 
 ## Reproducing the Analyses
 

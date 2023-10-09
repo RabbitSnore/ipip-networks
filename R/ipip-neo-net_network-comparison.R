@@ -33,6 +33,8 @@ ipip_comparison <- read_rds("output/ipip-neo_model-comparison-data.rds")
 
 # Procedural set up
 
+## Countries and pairs for comparison
+
 countries <- ipip_comparison$country
 
 country_pairs <- combn(countries, 2) %>%
@@ -41,7 +43,9 @@ country_pairs <- combn(countries, 2) %>%
 
 colnames(country_pairs) <- c("country_1", "country_2")
 
-nct_iterations <- 100
+## Iterations for network comparison tests
+
+nct_iterations <- 1000
 
 ## Parallel computing set up
 
@@ -85,9 +89,21 @@ confirmatory_networks <- foreach(i = 1:length(countries), .packages = packages) 
   
 }
 
+## Add country names
+
 names(confirmatory_networks) <- countries
 
+## Save estimated confirmatory networks
+
+write_rds(confirmatory_networks, "output/ipip-neo_confirmatory-networks.rds")
+
 # Network comparison tests
+
+# This loop will compute network comparison tests, comparing each country to
+# each other country. This process is computationally intensive and is set up
+# for parallel computation using all available cores. Note that even with
+# parallel processing, doing hundreds of comparisons with many iterations will
+# be extremely time consuming without a very large number of parallel processes.
 
 foreach(i = 1:nrow(country_pairs), .combine = bind_rows, .packages = packages) %dopar% {
   
@@ -100,53 +116,139 @@ foreach(i = 1:nrow(country_pairs), .combine = bind_rows, .packages = packages) %
     filter(country == country_1 | country == country_2) %>% 
     select(country, starts_with("i")) %>% 
     filter(complete.cases(.))
-  
-  # Get skeletons
-  
-  omega_skeleton_1 <- ipip_comparison$omega_list[ipip_comparison$country == country_1]
-  omega_skeleton_2 <- ipip_comparison$omega_list[ipip_comparison$country == country_2]
-  
+
   # Network comparison iterations
   
-  nct_structure <- rep(NA, nct_iterations)
-  nct_strength  <- rep(NA, nct_iterations)
+  seed_list <- round(runif(nct_iterations, 1000, 10000))
   
-  foreach(j = 1:nct_iterations, .combine = bind_rows, .packages = packages) %dopar% {
+  nct_data <- foreach(j = 1:nct_iterations, .combine = bind_rows, .packages = packages) %dopar% {
     
     # Sample permutation
     
+    set.seed(seed_list[j])
+    
+    ipip_subset$country <- sample(ipip_subset$country)
+    
+    ipip_1 <- ipip_subset %>% 
+      filter(country == country_1) %>% 
+      select(starts_with("i"))
+    
+    ipip_2 <- ipip_subset %>% 
+      filter(country == country_2) %>% 
+      select(starts_with("i"))
+    
     # Fit models
+    
+    # This model estimation procedure follows the same procedure used to
+    # identify the retained model for each country.
     
     ## Country 1
     
-    country_1_network <- 
-      varcov(data  = ipip_subset %>% 
-               filter(country == country_1) %>% 
-               select(starts_with("i")),
-             type  = "ggm",
-             omega = omega_skeleton_1[[1]]) %>% 
-      runmodel()
+    country_1_network <- EBICglasso(cov(ipip_1),
+                                   n = nrow(ipip_1),
+                                   nlambda = 1000,
+                                   lambda.min.ratio = 0.01,
+                                   # Refit without regularization to be
+                                   # comparable to the psychonetrics estimation
+                                   refit = TRUE,
+                                   returnAllResults = TRUE)
+    
+    ### Repeat training fit if sparsity may be violated
+    
+    lambda_index <- which(country_1_network$ebic == min(country_1_network$ebic))
+    lambda_opt   <- country_1_network$lambda[lambda_index]
+    
+    if (lambda_opt == min(country_1_network$lambda)) {
+      
+      country_1_network <- EBICglasso(cov(ipip_1),
+                                     n = nrow(ipip_1),
+                                     nlambda = 10000,
+                                     lambda.min.ratio = 0.1,
+                                     refit = TRUE,
+                                     returnAllResults = TRUE)
+      
+      lambda_index <- which(country_1_network$ebic == min(country_1_network$ebic))
+      lambda_opt   <- country_1_network$lambda[lambda_index]
+      
+      if (lambda_opt == min(country_1_network$lambda)) {
+        
+        country_1_network <- EBICglasso(cov(ipip_1),
+                                       n = nrow(ipip_1),
+                                       nlambda = 100000,
+                                       threshold = TRUE,
+                                       lambda.min.ratio = 0.1,
+                                       refit = TRUE,
+                                       returnAllResults = TRUE)
+        
+      }
+      
+    }
     
     ## Country 2
     
-    country_2_network <- 
-      varcov(data  = ipip_subset %>% 
-               filter(country == country_2) %>% 
-               select(starts_with("i")),
-             type  = "ggm",
-             omega = omega_skeleton_2[[1]]) %>% 
-      runmodel()
+    country_2_network <- EBICglasso(cov(ipip_1),
+                                    n = nrow(ipip_1),
+                                    nlambda = 1000,
+                                    lambda.min.ratio = 0.01,
+                                    refit = TRUE,
+                                    returnAllResults = TRUE)
+      
+    ### Repeat training fit if sparsity may be violated
+    
+    lambda_index <- which(country_2_network$ebic == min(country_2_network$ebic))
+    lambda_opt   <- country_2_network$lambda[lambda_index]
+    
+    if (lambda_opt == min(country_2_network$lambda)) {
+      
+      country_2_network <- EBICglasso(cov(ipip_1),
+                                      n = nrow(ipip_1),
+                                      nlambda = 10000,
+                                      lambda.min.ratio = 0.1,
+                                      refit = TRUE,
+                                      returnAllResults = TRUE)
+      
+      lambda_index <- which(country_2_network$ebic == min(country_2_network$ebic))
+      lambda_opt   <- country_2_network$lambda[lambda_index]
+      
+      if (lambda_opt == min(country_2_network$lambda)) {
+        
+        country_2_network <- EBICglasso(cov(ipip_1),
+                                        n = nrow(ipip_1),
+                                        nlambda = 100000,
+                                        threshold = TRUE,
+                                        lambda.min.ratio = 0.1,
+                                        refit = TRUE,
+                                        returnAllResults = TRUE)
+        
+      }
+      
+    }
+  
+    country_1_network <- country_1_network$optnet
+    country_2_network <- country_2_network$optnet
     
     # Calculate test statistics
     
     ## Network structure
     
+    network_diff <- country_1_network - country_2_network
+    
+    max_diff     <- max(network_diff) 
+    
     ## Global network strength
+    
+    strength_diff <- sum(abs(country_1_network)) - sum(abs(country_2_network))
     
     ## Store test statistics
     
-    nct_structure[j] <- x
-    nct_strength[j]  <- x
+    list(
+      nct_structure_test = max_diff, 
+      nct_strength_test  = strength_diff,
+      network_diff       = network_diff,
+      country_1_network  = country_1_network,
+      country_2_network  = country_2_network,
+      seed               = seed_list[j]
+      )
     
   }
   
