@@ -286,6 +286,9 @@ icc_betweenness <- icc(lmm_betweenness, by_group = TRUE)
 # parallel processing, doing hundreds of comparisons with many iterations will
 # be extremely time consuming without a very large number of parallel processes
 # or an exceptionally powerful computer.
+#
+# Also note that this procedure is extremely memory intensive in addition to
+# demanding processing power.
 
 nct_volume <- foreach(i = 1:nrow(country_pairs), .packages = packages) %dopar% {
   
@@ -479,6 +482,8 @@ nct_volume <- foreach(i = 1:nrow(country_pairs), .packages = packages) %dopar% {
   list(
     countries = c(country_1 = country_1,
                   country_2 = country_2),
+    obs_tests = c(max_diff_obs = max_diff_obs,
+                  strength_diff_obs = strength_diff_obs),
     p_values  = c(nct_structure_p = nct_structure_p, 
                   nct_strength_p  = nct_strength_p),
     nct_data  = nct_data
