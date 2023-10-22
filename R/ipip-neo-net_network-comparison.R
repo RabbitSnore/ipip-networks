@@ -82,6 +82,8 @@ registerDoParallel(cores)
 # prespecified, having been estimated from a training subset of the data. But
 # they are not confirmatory in the sense of strong hypothesis testing.
 
+if (!file.exists("output/ipip-neo_confirmatory-networks.rds")) {
+
 confirmatory_networks <- foreach(i = 1:length(countries), .packages = packages) %dopar% {
   
   # Retrieve omega matrix skeleton
@@ -117,6 +119,12 @@ names(confirmatory_networks) <- countries
 ## Save estimated confirmatory networks
 
 write_rds(confirmatory_networks, "output/ipip-neo_confirmatory-networks.rds")
+
+} else {
+  
+  confirmatory_networks <- read_rds("output/ipip-neo_confirmatory-networks.rds")
+  
+}
 
 # Walktrap community identification
 
@@ -290,7 +298,9 @@ icc_betweenness <- icc(lmm_betweenness, by_group = TRUE)
 # Also note that this procedure is extremely memory intensive in addition to
 # demanding processing power.
 
-nct_volume <- foreach(i = 1:nrow(country_pairs), .packages = packages) %dopar% {
+if (!file.exists("output/ipip-neo_nct-data_complete.rds")) {
+
+nct_volume <- foreach(i = 1:nrow(country_pairs), .packages = packages) %do% {
   
   # Subset data
   
@@ -318,6 +328,18 @@ nct_volume <- foreach(i = 1:nrow(country_pairs), .packages = packages) %dopar% {
   ## Global network strength
   
   strength_diff_obs <- sum(abs(country_1_conf_network)) - sum(abs(country_2_conf_network))
+  
+  # Create directory for output
+  
+  if (!dir.exists(
+    paste("output/nct-output_", country_1, "_", country_2, sep = "")
+    )) {
+    
+    dir.create(
+      paste("output/nct-output_", country_1, "_", country_2, sep = "")
+      )
+    
+  }
   
   # Network comparison iterations
   
@@ -448,12 +470,26 @@ nct_volume <- foreach(i = 1:nrow(country_pairs), .packages = packages) %dopar% {
       country_2          = country_2,
       nct_structure_test = max_diff, 
       nct_strength_test  = strength_diff,
-      network_diff       = network_diff,
       seed               = seed_list[j]
       )
     
-    nct_out$country_1_network  <- country_1_network
-    nct_out$country_2_network  <- country_2_network
+    nct_out$network_diff       <- list(network_diff)
+    
+    nct_out$country_1_network  <- list(country_1_network)
+    nct_out$country_2_network  <- list(country_2_network)
+    
+    write_rds(nct_out,
+              paste("output/nct-output_",
+                    country_1, 
+                    "_", 
+                    country_2,
+                    "/nct-out_",
+                    country_1, 
+                    "_", 
+                    country_2,
+                    str_pad(j, width = 4, pad = "0"),
+                    ".rds",
+                    sep = ""))
     
     nct_out
     
@@ -493,4 +529,10 @@ nct_volume <- foreach(i = 1:nrow(country_pairs), .packages = packages) %dopar% {
 
 ## Save NCT output
 
-write_rds(nct_volume, "output/ipip-neo_nct-data.rds")
+write_rds(nct_volume, "output/ipip-neo_nct-data_complete.rds")
+
+} else {
+  
+nct_volume <- read_rds("output/ipip-neo_nct-data_complete.rds")
+  
+}
