@@ -329,6 +329,22 @@ nct_volume <- foreach(i = 1:nrow(country_pairs), .packages = packages) %do% {
   
   strength_diff_obs <- sum(abs(country_1_conf_network)) - sum(abs(country_2_conf_network))
   
+  # Detect incomplete iterations
+  
+  if (dir.exists(
+    paste("output/nct-output_", country_1, "_", country_2, sep = "")
+  )) {
+    
+    files <- dir(paste("output/nct-output_", country_1, "_", country_2, sep = ""))
+    
+    start_iter <- length(files) + 1
+    
+  } else {
+    
+    start_iter <- 1
+    
+  }
+  
   # Create directory for output
   
   if (!dir.exists(
@@ -345,7 +361,7 @@ nct_volume <- foreach(i = 1:nrow(country_pairs), .packages = packages) %do% {
   
   seed_list <- round(runif(nct_iterations, 1000, 10000))
   
-  nct_data <- foreach(j = 1:nct_iterations, .combine = bind_rows, .packages = packages) %dopar% {
+  nct_data <- foreach(j = start_iter:nct_iterations, .combine = bind_rows, .packages = packages) %dopar% {
     
     # Sample permutation
     
