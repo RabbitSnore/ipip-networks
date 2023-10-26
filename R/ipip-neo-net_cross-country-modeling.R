@@ -10,7 +10,9 @@ packages <- c("tidyverse",
               "psychonetrics", 
               "foreach",
               "doParallel",
-              "readxl")
+              "readxl",
+              "ggbeeswarm",
+              "cowplot")
 
 lapply(packages, library, character.only = TRUE)
 
@@ -228,3 +230,137 @@ write.csv(round(matrix_cfi, 3),   "output/ipip-neo_matrix-cfi-rounded.csv")
 write.csv(round(matrix_tli, 3),   "output/ipip-neo_matrix-tli-rounded.csv")
 write.csv(round(matrix_rmsea, 3), "output/ipip-neo_matrix-rmsea-rounded.csv")
 
+# Visualization ----------------------------------------------------------------
+
+# Data for visualization
+
+cross_country_fit <- cross_country_fit %>% 
+  mutate(
+    model_source = case_when(
+      country_1 == country_2 ~ 1,
+      country_1 != country_2 ~ 0
+    )
+  )
+
+ipip_comparison_long <- ipip_comparison %>% 
+  pivot_longer(
+    cols = starts_with("cfi"),
+    names_to = "model",
+    values_to = "cfi"
+  )
+
+country_names <- c(
+  "Afghanistan",
+  "Albania",
+  "Australia",
+  "Canada", 
+  "China", 
+  "Denmark", 
+  "Finland", 
+  "France", 
+  "Germany", 
+  "Greece", 
+  "Hong Kong", 
+  "India", 
+  "Ireland", 
+  "Malaysia", 
+  "Mexico", 
+  "Netherlands", 
+  "New Zealand", 
+  "Norway", 
+  "Philippines", 
+  "Romania", 
+  "Singapore", 
+  "South Africa", 
+  "South Korea", 
+  "Sweden", 
+  "Thailand", 
+  "UK", 
+  "USA")
+
+# Swarm plots of fit statistics
+
+swarm_cross_country <- 
+ggplot(cross_country_fit,
+       aes(
+         x     = cfi_network,
+         y     = country_1,
+         color = as.factor(model_source),
+         size  = as.factor(model_source),
+       )) +
+  geom_vline(
+    xintercept = .95,
+    linetype = "dashed"
+  ) +
+  geom_quasirandom(
+    alpha = .50
+  ) +
+  scale_color_manual(
+    values = c("#355070", "#53131E"),
+    labels = c("Other Countries", "Origin")
+  ) +
+  scale_size_discrete(
+    range = c(1, 3),
+    labels = c("Other Countries", "Origin")
+  ) +
+  scale_y_discrete(
+    labels = country_names
+  ) +
+  scale_x_continuous(
+    breaks = seq(.80, 1.00, .05)
+  ) +
+  labs(
+    y     = "",
+    x     = "CFI",
+    color = "Network Model Data",
+    size  = "Network Model Data",
+    subtitle = "Fitting each country's network model to other countries"
+  ) +
+  theme_classic() +
+  theme(
+    legend.position = "bottom"
+  )
+
+swarm_model_comparison <- 
+ggplot(ipip_comparison_long,
+       aes(
+         x     = cfi,
+         y     = country,
+         color = as.factor(model)
+       )) +
+  geom_vline(
+    xintercept = .95,
+    linetype = "dashed"
+  ) +
+  geom_point(
+    size = 2
+  ) +
+  scale_color_manual(
+    labels = c("Bifactor", "Big Five", "Higher Order", "Network"),
+    values = c("#37123C", "#FE7F2D", "#5995ED", "#619B8A")
+  ) +
+  scale_y_discrete(
+    labels = country_names
+  ) +
+  scale_x_continuous(
+    breaks = seq(.40, 1.00, .05)
+  ) +
+  labs(
+    color = "Model",
+    y = "",
+    x = "CFI",
+    subtitle = "Comparison of models"
+  ) +
+  theme_classic() +
+  theme(
+    legend.position = "bottom"
+  )
+
+## Combine plots
+
+swarm_plots <- plot_grid(swarm_model_comparison, swarm_cross_country, nrow = 1)
+
+## Save figure
+
+save_plot("figures/ipip-neo_model-comparison-swarms.png", swarm_plots,
+          base_width = 10, base_height = 8.5)
