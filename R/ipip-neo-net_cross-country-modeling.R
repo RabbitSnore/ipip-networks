@@ -9,7 +9,8 @@
 packages <- c("tidyverse", 
               "psychonetrics", 
               "foreach",
-              "doParallel")
+              "doParallel",
+              "readxl")
 
 lapply(packages, library, character.only = TRUE)
 
@@ -64,20 +65,15 @@ country_pairs <- bind_rows(country_pairs_1, country_pairs_2)
 
 # Parallel computing set up
 
+# IMPORTANT! modify this for your system. do not assume this default will work
+# if you are reproducing the analyses. running this code and not running a
+# parallelized process will not be harmful, but you could have a suboptimal
+# experience using this code without modifications tailored for your computing
+# environment.
+
 cores <- detectCores()
 
 registerDoParallel(cores)
-
-# Set up empty data
-
-fit_data <- data.frame(
-  country_1     = country_pairs$country_1,
-  country_2     = country_pairs$country_2,
-  cfi_network   = rep(NA, nrow(country_pairs)),   
-  tli_network   = rep(NA, nrow(country_pairs)),   
-  rmsea_network = rep(NA, nrow(country_pairs)), 
-  bic_network   = rep(NA, nrow(country_pairs))
-)
 
 # Cross-country confirmatory network modeling ----------------------------------
 
@@ -87,13 +83,18 @@ fit_data <- data.frame(
 # data for each other country. This process is computationally intensive and is
 # set up for parallel computation using all available cores.
 
+# With 256 cores and around 420 GB of memory, this process took about two hours
+# to complete when I ran it.
+
 # Note that these are "confirmatory" in the sense that the model is
 # prespecified, having been estimated from a training subset of the data. But
 # they are not confirmatory in the sense of strong hypothesis testing.
 
-if (!file.exists("/output/ipip-neo_cross-country-data.rds")) {
+if (!file.exists("output/ipip-neo_cross-country-data.rds")) {
   
-  cross_country_data <- foreach(i = 1:nrow(country_pairs), .packages = packages) %dopar% {
+  cross_country_data <- foreach(i = 1:nrow(country_pairs), 
+                                .packages = packages,
+                                .combine  = bind_rows) %dopar% {
     
     # Subset data
     
@@ -104,6 +105,17 @@ if (!file.exists("/output/ipip-neo_cross-country-data.rds")) {
       filter(country == country_2) %>% 
       select(starts_with("i")) %>% 
       filter(complete.cases(.))
+    
+    # Set up empty data
+    
+    fit_data <- data.frame(
+      country_1     = country_1,
+      country_2     = country_2,
+      cfi_network   = NA,   
+      tli_network   = NA,   
+      rmsea_network = NA, 
+      bic_network   = NA
+    )
     
     # Retrieve omega matrix skeleton for Country 1
     
@@ -123,21 +135,96 @@ if (!file.exists("/output/ipip-neo_cross-country-data.rds")) {
     
     ## Extract indices
     
-    fit_data$cfi_network[i]    <- test_net_fit$Value[test_net_fit$Measure == "cfi"]
-    fit_data$tli_network[i]    <- test_net_fit$Value[test_net_fit$Measure == "tli"]
-    fit_data$rmsea_network[i]  <- test_net_fit$Value[test_net_fit$Measure == "rmsea"]
-    fit_data$bic_network[i]    <- test_net_fit$Value[test_net_fit$Measure == "bic"]
+    fit_data$cfi_network    <- test_net_fit$Value[test_net_fit$Measure == "cfi"]
+    fit_data$tli_network    <- test_net_fit$Value[test_net_fit$Measure == "tli"]
+    fit_data$rmsea_network  <- test_net_fit$Value[test_net_fit$Measure == "rmsea"]
+    fit_data$bic_network    <- test_net_fit$Value[test_net_fit$Measure == "bic"]
     
     # Store networks
     
-    getmatrix(cross_country_network,
-              matrix = "omega")
+    fit_data$omega_matrix <- list(getmatrix(cross_country_network,
+                                            matrix = "omega"))
+    
+    fit_data
     
   }
   
-  fit_data$omega_matrix <- cross_country_data
+  # Store data
   
-  write_rds(fit_data, "/output/ipip-neo_cross-country-data.rds")
+  write_rds(cross_country_data, "output/ipip-neo_cross-country-data.rds")
+  
+  ## Store simplified data
+  
+  write_csv(cross_country_data %>% 
+              select(-omega_matrix), 
+            file = "output/ipip-neo_cross-country-data.csv")
+  
+} else {
+  
+  cross_country_data <- read_rds("output/ipip-neo_cross-country-data.rds")
   
 }
+
+# Wrangle ----------------------------------------------------------------------
+
+# Combine cross-country fit measures with within-country fit measures
+
+ipip_network_fit <- ipip_comparison %>% 
+  select(
+    country_1 = country,
+    country_2 = country,
+    ends_with("network")
+  )
+
+cross_country_fit <- bind_rows(
+  cross_country_data %>% 
+    select(-omega_matrix), 
+  ipip_network_fit
+  ) %>% 
+  arrange(by = country_2) %>% 
+  arrange(by = country_1)
+
+# Fit measure matrices
+
+## Create matrices
+
+matrix_cfi   <- matrix(cross_country_fit$cfi_network, 
+                       nrow = 27,
+                       dimnames = list(unique(cross_country_fit$country_1),
+                                       unique(cross_country_fit$country_1)))
+
+matrix_tli   <- matrix(cross_country_fit$tli_network, 
+                       nrow = 27,
+                       dimnames = list(unique(cross_country_fit$country_1),
+                                       unique(cross_country_fit$country_1)))
+
+matrix_rmsea <- matrix(cross_country_fit$rmsea_network, 
+                       nrow = 27,
+                       dimnames = list(unique(cross_country_fit$country_1),
+                                       unique(cross_country_fit$country_1)))
+
+matrix_bic   <- matrix(cross_country_fit$bic_network, 
+                       nrow = 27,
+                       dimnames = list(unique(cross_country_fit$country_1),
+                                       unique(cross_country_fit$country_1)))
+
+## Store matrices
+
+matrix_cfi   <- as.data.frame(matrix_cfi) 
+matrix_tli   <- as.data.frame(matrix_tli)  
+matrix_rmsea <- as.data.frame(matrix_rmsea) 
+matrix_bic   <- as.data.frame(matrix_bic) 
+
+### Full
+
+write.csv(matrix_cfi,   "output/ipip-neo_matrix-cfi-full.csv")
+write.csv(matrix_tli,   "output/ipip-neo_matrix-tli-full.csv")
+write.csv(matrix_rmsea, "output/ipip-neo_matrix-rmsea-full.csv")
+write.csv(matrix_bic,   "output/ipip-neo_matrix-bic-full.csv")
+
+### Readable (rounded to three digits)
+
+write.csv(round(matrix_cfi, 3),   "output/ipip-neo_matrix-cfi-rounded.csv")
+write.csv(round(matrix_tli, 3),   "output/ipip-neo_matrix-tli-rounded.csv")
+write.csv(round(matrix_rmsea, 3), "output/ipip-neo_matrix-rmsea-rounded.csv")
 

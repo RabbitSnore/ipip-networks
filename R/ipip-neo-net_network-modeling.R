@@ -395,7 +395,11 @@ comparison_data <- data.frame(
 
 comparison_data$omega_list <- omega_list
 
-# Iterate network analysis over countries
+# Iterate network analysis and factor modeling over countries
+
+# Note that this is not set up to be parallelized, but it could be (and maybe
+# should be). On a typical personal computer, you can expect this loop to take
+# many hours.
 
 for (i in 1:length(countries)) {
   

@@ -4,6 +4,8 @@
 
 ################################################################################
 
+# THIS SCRIPT HAS NEVER BEEN SUCCESSFULLY COMPLETED.
+
 # Set up environment -----------------------------------------------------------
 
 packages <- c("tidyverse", 
@@ -53,6 +55,12 @@ nct_iterations <- 1000
 
 # Parallel computing set up
 
+# IMPORTANT! modify this for your system. do not assume this default will work
+# if you are reproducing the analyses. running this code and not running a
+# parallelized process will not be harmful, but you could have a suboptimal
+# experience using this code without modifications tailored for your computing
+# environment.
+
 cores <- detectCores()
 
 registerDoParallel(cores)
@@ -68,6 +76,13 @@ registerDoParallel(cores)
 #
 # Also note that this procedure is extremely memory intensive in addition to
 # demanding processing power.
+#
+# In fact, it is so intensive that we have never gotten it to complete
+# successfully. After failing a few times and trying some smaller scale code, my
+# back of the envelope estimation, based on the hardware I had access to, is
+# that this would take around 4 or 5 years to complete. So if you have that kind
+# of time or a sufficiently powerful computer to make it go much faster, maybe
+# you can actually run this.
 
 if (!file.exists("output/ipip-neo_nct-data_complete.rds")) {
   
