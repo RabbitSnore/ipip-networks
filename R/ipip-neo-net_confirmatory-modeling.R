@@ -16,7 +16,10 @@ packages <- c("tidyverse",
               "readxl",
               "lme4",
               "performance",
-              "cowplot")
+              "cowplot",
+              "grid",
+              "gridExtra",
+              "png")
 
 lapply(packages, library, character.only = TRUE)
 
@@ -282,3 +285,54 @@ icc_strength    <- icc(lmm_strength, by_group = TRUE)
 icc_closeness   <- icc(lmm_closeness, by_group = TRUE)
 icc_betweenness <- icc(lmm_betweenness, by_group = TRUE)
 
+# Create grids of network diagrams ---------------------------------------------
+
+# Create grid plots
+
+network_names <- paste(
+  "figures/",
+  dir("figures")[str_detect(dir("figures"), "network-plot")],
+  sep = "")
+
+paths_bigfive  <- network_names[str_detect(network_names, "bigfive")]
+paths_walktrap <- network_names[str_detect(network_names, "walktrap")]
+
+for (i in 1:length(paths_bigfive)) {
+  
+  assign(paste("network_bigfive_", i, sep = ""),
+         readPNG(paths_bigfive[i]))
+  
+}
+
+for (i in 1:length(paths_walktrap)) {
+  
+  assign(paste("network_walktrap_", i, sep = ""),
+         readPNG(paths_walktrap[i]))
+  
+}
+
+if (!dir.exists("figures/network-grids")) {
+  
+  dir.create("figures/network-grids")
+  
+}
+
+png("figures/network-grids/ipip-neo_bigfive-network_grid.png", 
+    height = 18, width = 8, units = "in", res = 1500)
+
+grid.arrange(grobs = 
+               map(paste("network_bigfive_", 1:length(paths_bigfive), sep = ""), 
+                   function(x) { rasterGrob(get(x))}),
+             nrow = 9)
+
+dev.off()
+
+png("figures/network-grids/ipip-neo_walktrap-network_grid.png", 
+    height = 18, width = 8, units = "in", res = 1500)
+
+grid.arrange(grobs = 
+               map(paste("network_walktrap_", 1:length(paths_walktrap), sep = ""), 
+                   function(x) { rasterGrob(get(x))}),
+             nrow = 9)
+
+dev.off()

@@ -51,3 +51,7 @@ rsconnect/
 # Data files
 
 data/*
+
+# Large figures
+
+figures/network-grids/*
