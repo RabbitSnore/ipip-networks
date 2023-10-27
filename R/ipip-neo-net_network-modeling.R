@@ -10,7 +10,9 @@ packages <- c("tidyverse",
               "qgraph", 
               "igraph", 
               "psychonetrics", 
-              "lavaan")
+              "lavaan",
+              "foreach",
+              "doParallel")
 
 lapply(packages, library, character.only = TRUE)
 
@@ -325,6 +327,18 @@ n =~ anxiety + anger + depression + self_consciousness + immoderation + vulnerab
 
 '
 
+# Parallel computing set up
+
+# IMPORTANT! modify this for your system. do not assume this default will work
+# if you are reproducing the analyses. running this code and not running a
+# parallelized process will not be harmful, but you could have a suboptimal
+# experience using this code without modifications tailored for your computing
+# environment.
+
+cores <- detectCores()
+
+registerDoParallel(cores)
+
 # Sort country sample sizes
 
 countries <- sort(table(ipip$country), decreasing = TRUE)
@@ -589,3 +603,139 @@ for (i in 1:length(countries)) {
 write_csv(comparison_data %>% 
             select(-omega_list),
           file = "output/ipip-neo_model-comparison-data.csv")
+
+# Factor model fit statistics from full data -----------------------------------
+
+# This loop fits the factor models to the full data for each country, for later
+# use comparing to the fit statistics for networks fit to the full data from
+# each country.
+
+if (!file.exists("output/ipip-neo_cfa-fits.rds")) {
+  
+  cfa_fits <- foreach(i = 1:length(countries), 
+                      .packages = packages, 
+                      .combine = bind_rows) %dopar% {
+  
+    # Subset data
+   
+    test_data <- ipip %>% 
+      filter(country == names(countries)[i]) %>% 
+      select(starts_with("i")) %>% 
+      filter(complete.cases(.))
+    
+    # Fit five factor models
+   
+    test_big_five <- cfa(big_five,
+                         data = test_data,
+                         estimator = "ML")
+   
+    test_bifactor <- cfa(bifactor,
+                         data = test_data,
+                         estimator = "ML")
+   
+    test_higher   <- cfa(higher_order,
+                         data = test_data,
+                         estimator  = "ML",
+                         orthogonal.y = TRUE)
+   
+    # Set up empty data
+    
+    fit_data <- data.frame(
+      country        = names(countries)[i],
+      cfi_big_five   = NA,   
+      tli_big_five   = NA,   
+      rmsea_big_five = NA, 
+      bic_big_five   = NA,
+      cfi_bifactor   = NA,   
+      tli_bifactor   = NA,   
+      rmsea_bifactor = NA, 
+      bic_bifactor   = NA,
+      cfi_higher     = NA,   
+      tli_higher     = NA,   
+      rmsea_higher   = NA, 
+      bic_higher     = NA
+    )
+   
+    # Calculate fit indices
+    
+    ## Big Five
+    
+    if (test_big_five@optim$converged == TRUE) {
+      
+      test_big_five_fit <- fitmeasures(test_big_five, 
+                                       fit.measures = c("cfi", "tli", "rmsea", "bic"))
+      
+    } else {
+      
+      test_big_five_fit <- c("cfi" = NA, "tli" = NA, "rmsea" = NA, "bic" = NA)
+      
+    }
+    
+    if (test_big_five@optim$converged == TRUE) {
+      
+      test_big_five_fit <- fitmeasures(test_big_five, 
+                                       fit.measures = c("cfi", "tli", "rmsea", "bic"))
+      
+    } else {
+      
+      test_big_five_fit <- c("cfi" = NA, "tli" = NA, "rmsea" = NA, "bic" = NA)
+      
+    }
+    
+    ## Bifactor
+    
+    if (test_bifactor@optim$converged == TRUE) {
+      
+      test_bifactor_fit <- fitmeasures(test_bifactor, 
+                                       fit.measures = c("cfi", "tli", "rmsea", "bic"))
+      
+    } else {
+      
+      test_bifactor_fit <- c("cfi" = NA, "tli" = NA, "rmsea" = NA, "bic" = NA)
+      
+    }
+    
+    ## Higher Order
+    
+    if (test_higher@optim$converged == TRUE) {
+      
+      test_higher_fit <- fitmeasures(test_higher, 
+                                     fit.measures = c("cfi", "tli", "rmsea", "bic"))
+      
+    } else {
+      
+      test_higher_fit <- c("cfi" = NA, "tli" = NA, "rmsea" = NA, "bic" = NA)
+      
+    }
+    
+    ## Extract indices
+    
+    fit_data$cfi_big_five   <- test_big_five_fit[names(test_big_five_fit) == "cfi"]
+    fit_data$cfi_bifactor   <- test_bifactor_fit[names(test_bifactor_fit) == "cfi"]
+    fit_data$cfi_higher     <- test_higher_fit[names(test_higher_fit) == "cfi"]
+    
+    fit_data$tli_big_five   <- test_big_five_fit[names(test_big_five_fit) == "tli"]
+    fit_data$tli_bifactor   <- test_bifactor_fit[names(test_bifactor_fit) == "tli"]
+    fit_data$tli_higher     <- test_higher_fit[names(test_higher_fit) == "tli"]
+    
+    fit_data$rmsea_big_five <- test_big_five_fit[names(test_big_five_fit) == "rmsea"]
+    fit_data$rmsea_bifactor <- test_bifactor_fit[names(test_bifactor_fit) == "rmsea"]
+    fit_data$rmsea_higher   <- test_higher_fit[names(test_higher_fit) == "rmsea"]
+    
+    fit_data$bic_big_five   <- test_big_five_fit[names(test_big_five_fit) == "bic"]
+    fit_data$bic_bifactor   <- test_bifactor_fit[names(test_bifactor_fit) == "bic"]
+    fit_data$bic_higher     <- test_higher_fit[names(test_higher_fit) == "bic"]
+    
+    fit_data
+   
+ }
+  
+  ## Save estimated confirmatory networks
+  
+  write_rds(cfa_fits, "output/ipip-neo_cfa-fits.rds")
+  
+} else {
+  
+  cfa_fits <- read_rds("output/ipip-neo_cfa-fits.rds")
+  
+}

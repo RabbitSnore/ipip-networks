@@ -83,7 +83,9 @@ registerDoParallel(cores)
 
 if (!file.exists("output/ipip-neo_confirmatory-networks.rds")) {
 
-confirmatory_networks <- foreach(i = 1:length(countries), .packages = packages) %dopar% {
+confirmatory_networks <- foreach(i = 1:length(countries), 
+                                 .packages = packages, 
+                                 .combine = bind_rows) %dopar% {
   
   # Retrieve omega matrix skeleton
   
@@ -149,8 +151,8 @@ write_rds(confirmatory_networks, "output/ipip-neo_confirmatory-networks.rds")
 walktrap_communities <- foreach(i = 1:length(countries), .packages = packages) %do% {
   
   walktrap.community(
-    as.igraph(qgraph(confirmatory_networks[[i]])), 
-    weights = abs(E(as.igraph(qgraph(confirmatory_networks[[i]]))))
+    as.igraph(qgraph(confirmatory_networks$omega_matrix[[i]])), 
+    weights = abs(E(as.igraph(qgraph(confirmatory_networks$omega_matrix[[i]]))))
     )
   
 }
@@ -171,7 +173,7 @@ if (!dir.exists("figures")) {
 
 network_graphs_walktrap <- foreach(i = 1:length(countries)) %do% {
   
-  qgraph(confirmatory_networks[[i]],
+  qgraph(confirmatory_networks$omega_matrix[[i]],
          layout    = "spring",
          color     = walktrap_communities[[i]]$membership,
          theme     = "colorblind",
@@ -192,7 +194,7 @@ network_graphs_walktrap <- foreach(i = 1:length(countries)) %do% {
 
 network_graphs_bigfive <- foreach(i = 1:length(countries)) %do% {
   
-  qgraph(confirmatory_networks[[i]],
+  qgraph(confirmatory_networks$omega_matrix[[i]],
          layout    = "spring",
          groups    = as.factor(ipip_key$trait),
          theme     = "colorblind",
@@ -216,9 +218,9 @@ network_graphs_bigfive <- foreach(i = 1:length(countries)) %do% {
 
 centrality_data <- foreach(i = 1:length(countries), .packages = packages, .combine = bind_rows) %do% {
   
-  strength    <- centrality(confirmatory_networks[[i]])$InDegree
-  closeness   <- centrality(confirmatory_networks[[i]])$Closeness
-  betweenness <- centrality(confirmatory_networks[[i]])$Betweenness
+  strength    <- centrality(confirmatory_networks$omega_matrix[[i]])$InDegree
+  closeness   <- centrality(confirmatory_networks$omega_matrix[[i]])$Closeness
+  betweenness <- centrality(confirmatory_networks$omega_matrix[[i]])$Betweenness
   
   data.frame(
     country     = countries[i],

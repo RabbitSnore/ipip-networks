@@ -33,6 +33,10 @@ ipip_comparison <- read_rds("output/ipip-neo_model-comparison-data.rds")
 
 confirmatory_networks <- read_rds("output/ipip-neo_confirmatory-networks.rds")
 
+# Load factor model fit data
+
+cfa_fits <- read_rds("output/ipip-neo_cfa-fits.rds")
+
 # Load item key
 
 ipip_key <- read_xls("data/IPIP-NEO-ItemKey.xls")
@@ -288,9 +292,26 @@ ipip_cfi_long <- ipip_comparison %>%
     values_to = "cfi"
   )
 
+## Cross country BIC comparison
+
+cross_country_bic <- cross_country_fit %>%
+  group_by(country_2) %>% 
+  mutate(
+    bic_scaled = as.numeric(scale(bic_network))
+  ) %>% 
+  ungroup()
+
+bic_summary <- cross_country_bic %>% 
+  group_by(country_2) %>% 
+  summarise(
+    mean_bic   = mean(bic_network, na.rm = TRUE),
+    sd_bic     = sd(bic_network, na.rm = TRUE)
+  ) %>% 
+  ungroup()
+
 ## Long form BIC data
 
-ipip_bic_long <- ipip_comparison %>% 
+test_data_bic_long <- ipip_comparison %>% 
   pivot_longer(
     cols = starts_with("bic"),
     names_to = "model",
@@ -298,16 +319,27 @@ ipip_bic_long <- ipip_comparison %>%
   ) %>% 
   group_by(country) %>% 
   mutate(
-    bic_scaled     = as.numeric(scale(bic))
+    bic_scaled = as.numeric(scale(bic))
   ) %>% 
   ungroup()
 
-## Cross country BIC comparison
-
-cross_country_bic <- cross_country_fit %>%
+full_data_bic_long <- cfa_fits %>% 
+  left_join(
+    select(confirmatory_networks, country, bic_network),
+    by = "country"
+  ) %>% 
+  left_join(
+    select(bic_summary, country = country_2, mean_bic, sd_bic),
+    by = "country"
+  ) %>% 
+  pivot_longer(
+    cols = starts_with("bic"),
+    names_to = "model",
+    values_to = "bic"
+  ) %>% 
   group_by(country) %>% 
   mutate(
-    bic_scaled     = as.numeric(scale(bic_network))
+    bic_scaled = (bic - mean_bic)/sd_bic
   ) %>% 
   ungroup()
 
@@ -339,14 +371,14 @@ ggplot(cross_country_bic,
   geom_quasirandom(
     alpha = .50
   ) +
-  geom_quasirandom(
-    data = ipip_bic_long,
+  geom_point(
+    data = full_data_bic_long,
     aes(
       y = country
     ),
-    color = "red",
-    size = 1.25,
-    alpha = .25
+    color = "#B5446E",
+    size = 1.50,
+    alpha = .50
   ) +
   scale_color_manual(
     values = c("#355070", "#53131E"),
@@ -364,7 +396,7 @@ ggplot(cross_country_bic,
     x     = "BIC (standardized within country)",
     color = "Model Origin",
     size  = "Model Origin",
-    subtitle = "Fitting each country's network model to other countries' data"
+    subtitle = "Fitting each country's network model to other countries\n(full data)"
   ) +
   theme_classic() +
   theme(
@@ -372,7 +404,7 @@ ggplot(cross_country_bic,
   )
 
 swarm_bic_model_comparison <- 
-  ggplot(ipip_bic_long,
+  ggplot(test_data_bic_long,
          aes(
            x     = bic_scaled,
            y     = country,
@@ -392,7 +424,7 @@ swarm_bic_model_comparison <-
     color = "Model",
     y = "",
     x = "BIC (standardized within country)",
-    subtitle = "Comparison of models"
+    subtitle = "Comparison of models\n(test data)"
   ) +
   theme_classic() +
   theme(
@@ -470,7 +502,7 @@ ggplot(ipip_cfi_long,
     color = "Model",
     y = "",
     x = "CFI",
-    subtitle = "Comparison of models"
+    subtitle = "Comparison of models\n(test data)"
   ) +
   theme_classic() +
   theme(
@@ -482,11 +514,11 @@ ggplot(ipip_cfi_long,
 
 swarm_plots_bic <- plot_grid(swarm_bic_model_comparison, 
                              swarm_bic_cross_country, 
-                             nrow = 1)
+                             nrow = 1, rel_widths = c(1, 1.1))
 
 swarm_plots_cfi <- plot_grid(swarm_cfi_model_comparison, 
                              swarm_cfi_cross_country, 
-                             nrow = 1)
+                             nrow = 1, rel_widths = c(1, 1.1))
 
 ## Save figure
 
