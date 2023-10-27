@@ -230,24 +230,11 @@ write.csv(round(matrix_cfi, 3),   "output/ipip-neo_matrix-cfi-rounded.csv")
 write.csv(round(matrix_tli, 3),   "output/ipip-neo_matrix-tli-rounded.csv")
 write.csv(round(matrix_rmsea, 3), "output/ipip-neo_matrix-rmsea-rounded.csv")
 
-# Visualization ----------------------------------------------------------------
+# Visualization and description ------------------------------------------------
 
 # Data for visualization
 
-cross_country_fit <- cross_country_fit %>% 
-  mutate(
-    model_source = case_when(
-      country_1 == country_2 ~ 1,
-      country_1 != country_2 ~ 0
-    )
-  )
-
-ipip_comparison_long <- ipip_comparison %>% 
-  pivot_longer(
-    cols = starts_with("cfi"),
-    names_to = "model",
-    values_to = "cfi"
-  )
+## Country names
 
 country_names <- c(
   "Afghanistan",
@@ -278,9 +265,146 @@ country_names <- c(
   "UK", 
   "USA")
 
+## Identify whether fit measures correspond to origin country
+
+cross_country_fit <- cross_country_fit %>% 
+  mutate(
+    model_source = case_when(
+      country_1 == country_2 ~ 1,
+      country_1 != country_2 ~ 0
+    )
+  )
+
+## Long form CFI data
+
+ipip_cfi_long <- ipip_comparison %>% 
+  pivot_longer(
+    cols = starts_with("cfi"),
+    names_to = "model",
+    values_to = "cfi"
+  )
+
+## Long form BIC data
+
+ipip_bic_long <- ipip_comparison %>% 
+  pivot_longer(
+    cols = starts_with("bic"),
+    names_to = "model",
+    values_to = "bic"
+  ) %>% 
+  group_by(country) %>% 
+  mutate(
+    bic_comparable = bic - min(bic, na.rm = TRUE),
+    bic_scaled     = as.numeric(scale(bic))
+  ) %>% 
+  ungroup()
+
+ipip_bic_summary <- ipip_bic_long %>% 
+  group_by(country) %>% 
+  summarise(
+    bic_mean       = mean(bic, na.rm = TRUE),
+    bic_sd         = sd(bic, na.rm = TRUE)
+  )
+
+## Cross country BIC comparison
+
+cross_country_bic <- cross_country_fit %>%
+  left_join(ipip_bic_summary, by = c("country_2" = "country")) %>% 
+  mutate(
+    bic_scaled = (bic_network - bic_mean)/bic_sd
+  )
+
+## Identify best fitting models
+
+cross_country_best <- cross_country_fit %>% 
+  group_by(country_2) %>% 
+  summarise(
+    best_model_bic   = country_1[which(bic_network == min(bic_network))],
+    best_model_rmsea = country_1[which(rmsea_network == min(rmsea_network))],
+    best_model_cfi   = country_1[which(cfi_network == max(cfi_network))]
+  ) %>% 
+  rename(
+    country = country_2
+  )
+
 # Swarm plots of fit statistics
 
-swarm_cross_country <- 
+## BIC
+
+swarm_bic_cross_country <- 
+ggplot(cross_country_bic,
+       aes(
+         x     = bic_scaled,
+         y     = country_2,
+         color = as.factor(model_source),
+         size  = as.factor(model_source),
+       )) +
+  geom_quasirandom(
+    alpha = .50
+  ) +
+  geom_quasirandom(
+    data = ipip_bic_long,
+    aes(
+      y = country
+    ),
+    color = "red",
+    size = 1.25,
+    alpha = .25
+  ) +
+  scale_color_manual(
+    values = c("#355070", "#53131E"),
+    labels = c("Other Countries", "Origin")
+  ) +
+  scale_size_discrete(
+    range = c(1, 2),
+    labels = c("Other Countries", "Origin")
+  ) +
+  scale_y_discrete(
+    labels = country_names
+  ) +
+  labs(
+    y     = "Data Origin",
+    x     = "BIC (standardized within country)",
+    color = "Model Origin",
+    size  = "Model Origin",
+    subtitle = "Fitting each country's network model to other countries' data"
+  ) +
+  theme_classic() +
+  theme(
+    legend.position = "bottom"
+  )
+
+swarm_bic_model_comparison <- 
+  ggplot(ipip_bic_long,
+         aes(
+           x     = bic_scaled,
+           y     = country,
+           color = as.factor(model)
+         )) +
+  geom_point(
+    size = 2
+  ) +
+  scale_color_manual(
+    labels = c("Bifactor", "Big Five", "Higher Order", "Network"),
+    values = c("#37123C", "#FE7F2D", "#5995ED", "#619B8A")
+  ) +
+  scale_y_discrete(
+    labels = country_names
+  ) +
+  labs(
+    color = "Model",
+    y = "",
+    x = "BIC (standardized within country)",
+    subtitle = "Comparison of models"
+  ) +
+  theme_classic() +
+  theme(
+    legend.position = "bottom"
+  )
+
+## CFI
+
+swarm_cfi_cross_country <- 
 ggplot(cross_country_fit,
        aes(
          x     = cfi_network,
@@ -300,7 +424,7 @@ ggplot(cross_country_fit,
     labels = c("Other Countries", "Origin")
   ) +
   scale_size_discrete(
-    range = c(1, 3),
+    range = c(1, 2),
     labels = c("Other Countries", "Origin")
   ) +
   scale_y_discrete(
@@ -321,8 +445,8 @@ ggplot(cross_country_fit,
     legend.position = "bottom"
   )
 
-swarm_model_comparison <- 
-ggplot(ipip_comparison_long,
+swarm_cfi_model_comparison <- 
+ggplot(ipip_cfi_long,
        aes(
          x     = cfi,
          y     = country,
@@ -356,11 +480,21 @@ ggplot(ipip_comparison_long,
     legend.position = "bottom"
   )
 
+
 ## Combine plots
 
-swarm_plots <- plot_grid(swarm_model_comparison, swarm_cross_country, nrow = 1)
+swarm_plots_bic <- plot_grid(swarm_bic_model_comparison, 
+                             swarm_bic_cross_country, 
+                             nrow = 1)
+
+swarm_plots_cfi <- plot_grid(swarm_cfi_model_comparison, 
+                             swarm_cfi_cross_country, 
+                             nrow = 1)
 
 ## Save figure
 
-save_plot("figures/ipip-neo_model-comparison-swarms.png", swarm_plots,
-          base_width = 10, base_height = 8.5)
+save_plot("figures/ipip-neo_bic_model-comparison-swarms.png", swarm_plots_bic,
+          base_width = 12.5, base_height = 8.5)
+
+save_plot("figures/ipip-neo_cfi_model-comparison-swarms.png", swarm_plots_cfi,
+          base_width = 12.5, base_height = 8.5)
