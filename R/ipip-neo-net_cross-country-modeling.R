@@ -29,6 +29,10 @@ ipip <- read_csv("data/ipip-neo_cleaned.csv")
 
 ipip_comparison <- read_rds("output/ipip-neo_model-comparison-data.rds")
 
+# Load confirmatory network data
+
+confirmatory_networks <- read_rds("output/ipip-neo_confirmatory-networks.rds")
+
 # Load item key
 
 ipip_key <- read_xls("data/IPIP-NEO-ItemKey.xls")
@@ -171,7 +175,7 @@ if (!file.exists("output/ipip-neo_cross-country-data.rds")) {
 
 # Combine cross-country fit measures with within-country fit measures
 
-ipip_network_fit <- ipip_comparison %>% 
+ipip_network_fit <- confirmatory_networks %>% 
   select(
     country_1 = country,
     country_2 = country,
@@ -294,25 +298,18 @@ ipip_bic_long <- ipip_comparison %>%
   ) %>% 
   group_by(country) %>% 
   mutate(
-    bic_comparable = bic - min(bic, na.rm = TRUE),
     bic_scaled     = as.numeric(scale(bic))
   ) %>% 
   ungroup()
 
-ipip_bic_summary <- ipip_bic_long %>% 
-  group_by(country) %>% 
-  summarise(
-    bic_mean       = mean(bic, na.rm = TRUE),
-    bic_sd         = sd(bic, na.rm = TRUE)
-  )
-
 ## Cross country BIC comparison
 
 cross_country_bic <- cross_country_fit %>%
-  left_join(ipip_bic_summary, by = c("country_2" = "country")) %>% 
+  group_by(country) %>% 
   mutate(
-    bic_scaled = (bic_network - bic_mean)/bic_sd
-  )
+    bic_scaled     = as.numeric(scale(bic_network))
+  ) %>% 
+  ungroup()
 
 ## Identify best fitting models
 

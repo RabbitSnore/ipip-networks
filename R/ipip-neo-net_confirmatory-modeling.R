@@ -104,16 +104,35 @@ confirmatory_networks <- foreach(i = 1:length(countries), .packages = packages) 
            omega = omega_skeleton[[1]]) %>% 
     runmodel()
   
-  ## Store networks
+  # Set up empty data
   
-  getmatrix(country_conf_network,
-            matrix = "omega")
+  fit_data <- data.frame(
+    country       = countries[i],
+    cfi_network   = NA,   
+    tli_network   = NA,   
+    rmsea_network = NA, 
+    bic_network   = NA
+  )
+  
+  # Fit indices
+  
+  test_net_fit <- fit(country_conf_network)
+  
+  ## Extract indices
+  
+  fit_data$cfi_network    <- test_net_fit$Value[test_net_fit$Measure == "cfi"]
+  fit_data$tli_network    <- test_net_fit$Value[test_net_fit$Measure == "tli"]
+  fit_data$rmsea_network  <- test_net_fit$Value[test_net_fit$Measure == "rmsea"]
+  fit_data$bic_network    <- test_net_fit$Value[test_net_fit$Measure == "bic"]
+  
+  # Store networks
+  
+  fit_data$omega_matrix <- list(getmatrix(country_conf_network,
+                                          matrix = "omega"))
+  
+  fit_data
   
 }
-
-## Add country names
-
-names(confirmatory_networks) <- countries
 
 ## Save estimated confirmatory networks
 
