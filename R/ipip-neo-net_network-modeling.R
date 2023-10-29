@@ -344,6 +344,22 @@ registerDoParallel(cores)
 countries <- sort(table(ipip$country), decreasing = TRUE)
 countries <- countries[countries > sample_cutoff]
 
+# Descriptive table
+
+country_descriptives <- ipip %>% 
+  group_by(country) %>% 
+  summarise(
+    N        = n(),
+    female   = sum(sex == 2)/n(),
+    age_mean = mean(age),
+    age_sd   = sd(age),
+    age_med  = median(age)
+  ) %>% 
+  filter(N > sample_cutoff) %>% 
+  filter(!is.na(country))
+
+write_csv(country_descriptives, "output/ipip-neo_country-descriptives.csv")
+
 # Create data table
 
 set.seed(1111)

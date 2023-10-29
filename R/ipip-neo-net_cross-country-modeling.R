@@ -356,6 +356,23 @@ cross_country_best <- cross_country_fit %>%
     country = country_2
   )
 
+## Bayes factors for origin networks vs. best alternative model
+
+cross_country_bic_min <- cross_country_fit %>%
+  filter(!(country_1 == country_2)) %>% 
+  group_by(country_2) %>% 
+  summarise(
+    bic_comparison = min(bic_network)
+  )
+
+cross_country_bf <- cross_country_fit %>% 
+  filter(country_1 == country_2) %>% 
+  left_join(cross_country_bic_min, by = "country_2") %>% 
+  mutate(
+    bf_origin  = exp( (bic_comparison - bic_network) / 2 ),
+    bf_e_power = (bic_comparison - bic_network) / 2
+  )
+
 # Swarm plots of fit statistics
 
 ## BIC
@@ -377,7 +394,7 @@ ggplot(cross_country_bic,
       y = country
     ),
     color = "#B5446E",
-    size = 1.50,
+    size = .75,
     alpha = .50
   ) +
   scale_color_manual(
@@ -385,7 +402,7 @@ ggplot(cross_country_bic,
     labels = c("Other Countries", "Origin")
   ) +
   scale_size_discrete(
-    range = c(1, 2),
+    range = c(.50, 1.5),
     labels = c("Other Countries", "Origin")
   ) +
   scale_y_discrete(
@@ -396,7 +413,7 @@ ggplot(cross_country_bic,
     x     = "BIC (standardized within country)",
     color = "Model Origin",
     size  = "Model Origin",
-    subtitle = "Fitting each country's network model to other countries\n(full data)"
+    subtitle = "Cross-Country Network Invariance\n(full data)"
   ) +
   theme_classic() +
   theme(
@@ -411,7 +428,7 @@ swarm_bic_model_comparison <-
            color = as.factor(model)
          )) +
   geom_point(
-    size = 2
+    size = 1
   ) +
   scale_color_manual(
     labels = c("Bifactor", "Big Five", "Higher Order", "Network"),
@@ -453,7 +470,7 @@ ggplot(cross_country_fit,
     labels = c("Other Countries", "Origin")
   ) +
   scale_size_discrete(
-    range = c(1, 2),
+    range = c(.50, 1.5),
     labels = c("Other Countries", "Origin")
   ) +
   scale_y_discrete(
@@ -467,7 +484,7 @@ ggplot(cross_country_fit,
     x     = "CFI",
     color = "Network Model Data",
     size  = "Network Model Data",
-    subtitle = "Fitting each country's network model to other countries"
+    subtitle = "Cross-Country Network Invariance"
   ) +
   theme_classic() +
   theme(
@@ -486,7 +503,7 @@ ggplot(ipip_cfi_long,
     linetype = "dashed"
   ) +
   geom_point(
-    size = 2
+    size = 1
   ) +
   scale_color_manual(
     labels = c("Bifactor", "Big Five", "Higher Order", "Network"),
@@ -523,7 +540,7 @@ swarm_plots_cfi <- plot_grid(swarm_cfi_model_comparison,
 ## Save figure
 
 save_plot("figures/ipip-neo_bic_model-comparison-swarms.png", swarm_plots_bic,
-          base_width = 12.5, base_height = 8.5)
+          base_width = 10.5, base_height = 8)
 
 save_plot("figures/ipip-neo_cfi_model-comparison-swarms.png", swarm_plots_cfi,
-          base_width = 12.5, base_height = 8.5)
+          base_width = 10.5, base_height = 8)

@@ -265,13 +265,14 @@ ggplot(centrality_data_long %>%
   ) +
   theme_classic() +
   theme(
-    axis.text.y = element_text(size = 7)
+    axis.text.y = element_text(size = 3),
+    axis.text.x = element_text(angle = 60, hjust = 1, vjust = 1)
   )
 
 ### Save centrality figure
 
 save_plot("figures/ipip-neo_centrality-plot.png", centrality_plot,
-          base_height = 10, base_width = 14)
+          base_height = 5, base_width = 7)
 
 ## Model centrality
 
