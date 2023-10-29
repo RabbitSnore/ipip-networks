@@ -358,3 +358,77 @@ grid.arrange(grobs =
              nrow = 9)
 
 dev.off()
+
+# Selected countries for manuscript
+
+countries_selected <- c("Canada", "Singapore")
+
+## Plot networks with walktrap communities indicated by color
+
+network_graphs_walktrap_sel <- foreach(i = 1:length(countries_selected)) %do% {
+  
+  qgraph(confirmatory_networks$omega_matrix[[which(confirmatory_networks$country == countries_selected[i])]],
+         layout    = "spring",
+         color     = walktrap_communities[[which(names(walktrap_communities) == countries_selected[i])]]$membership,
+         theme     = "colorblind",
+         filename  = paste("figures/network-grids/ipip-neo_network-plot_", 
+                           str_replace_all(tolower(countries_selected[i]),
+                                           " ",
+                                           "_"),
+                           "_walktrap_titled",
+                           sep = ""),
+         filetype  = "png",
+         height    = 5,
+         width     = 5,
+         title     = paste(countries_selected[i], "- Walktrap", sep = " ")
+  )
+  
+}
+
+## Plot networks with Big Five traits indicated by color
+
+network_graphs_bigfive_sel <- foreach(i = 1:length(countries)) %do% {
+  
+  qgraph(confirmatory_networks$omega_matrix[[which(confirmatory_networks$country == countries_selected[i])]],
+         layout    = "spring",
+         groups    = as.factor(ipip_key$trait),
+         theme     = "colorblind",
+         filename  = paste("figures/network-grids/ipip-neo_network-plot_", 
+                           str_replace_all(tolower(countries_selected[i]),
+                                           " ",
+                                           "_"),
+                           "_bigfive_titled",
+                           sep = ""),
+         filetype  = "png",
+         height    = 5,
+         width     = 5,
+         legend    = FALSE,
+         title     = paste(countries_selected[i], "- Big Five", sep = " ")
+  )
+  
+}
+
+## Grid of select countries
+
+titled_paths <- paste(
+  "figures/network-grids/",
+  dir("figures/network-grids/")[str_detect(dir("figures/network-grids/"), "titled")],
+  sep = ""
+)
+  
+for (i in 1:(length(countries_selected) * 2)) {
+  
+  assign(paste("network_titled_", i, sep = ""),
+         readPNG(titled_paths[i]))
+  
+}
+
+png("figures/network-grids/ipip-neo_titled-network_grid.png", 
+    height = 8, width = 8, units = "in", res = 1500)
+
+grid.arrange(grobs = 
+               map(paste("network_titled_", 1:length(titled_paths), sep = ""), 
+                   function(x) { rasterGrob(get(x))}),
+             nrow = 2)
+
+dev.off()
