@@ -1,6 +1,6 @@
 ################################################################################
 
-# IPIP-NEO Network Analysis - Cross-Country Network Fitting
+# IPIP-NEO Network Analysis - Cross-Country Network Fitting (Test Data)
 
 ################################################################################
 
@@ -32,10 +32,6 @@ ipip_comparison <- read_rds("output/ipip-neo_model-comparison-data.rds")
 # Load confirmatory network data
 
 confirmatory_networks <- read_rds("output/ipip-neo_confirmatory-networks.rds")
-
-# Load factor model fit data
-
-cfa_fits <- read_rds("output/ipip-neo_cfa-fits.rds")
 
 # Load item key
 
@@ -93,14 +89,7 @@ registerDoParallel(cores)
 # data for each other country. This process is computationally intensive and is
 # set up for parallel computation using all available cores.
 
-# With 256 cores and around 420 GB of memory, this process took about two hours
-# to complete when I ran it.
-
-# Note that these are "confirmatory" in the sense that the model is
-# prespecified, having been estimated from a training subset of the data. But
-# they are not confirmatory in the sense of strong hypothesis testing.
-
-if (!file.exists("output/ipip-neo_cross-country-data.rds")) {
+if (!file.exists("output/ipip-neo_cross-country-test-data.rds")) {
   
   cross_country_data <- foreach(i = 1:nrow(country_pairs), 
                                 .packages = packages,
@@ -111,10 +100,10 @@ if (!file.exists("output/ipip-neo_cross-country-data.rds")) {
     country_1 <- country_pairs$country_1[i]
     country_2 <- country_pairs$country_2[i]
     
-    ipip_subset <- ipip %>% 
-      filter(country == country_2) %>% 
-      select(starts_with("i")) %>% 
-      filter(complete.cases(.))
+    ipip_subset <- read_csv(paste("data/test/ipip-neo_test_", 
+                                  tolower(country_2), 
+                                  ".csv", 
+                                  sep = ""))
     
     # Set up empty data
     
@@ -161,17 +150,17 @@ if (!file.exists("output/ipip-neo_cross-country-data.rds")) {
   
   # Store data
   
-  write_rds(cross_country_data, "output/ipip-neo_cross-country-data.rds")
+  write_rds(cross_country_data, "output/ipip-neo_cross-country-test-data.rds")
   
   ## Store simplified data
   
   write_csv(cross_country_data %>% 
               select(-omega_matrix), 
-            file = "output/ipip-neo_cross-country-data.csv")
+            file = "output/ipip-neo_cross-country-test-data.csv")
   
 } else {
   
-  cross_country_data <- read_rds("output/ipip-neo_cross-country-data.rds")
+  cross_country_data <- read_rds("output/ipip-neo_cross-country-test-data.rds")
   
 }
 
@@ -179,7 +168,7 @@ if (!file.exists("output/ipip-neo_cross-country-data.rds")) {
 
 # Combine cross-country fit measures with within-country fit measures
 
-ipip_network_fit <- confirmatory_networks %>% 
+ipip_network_fit <- ipip_comparison %>% 
   select(
     country_1 = country,
     country_2 = country,
@@ -227,16 +216,16 @@ matrix_bic   <- as.data.frame(matrix_bic)
 
 ### Full
 
-write.csv(matrix_cfi,   "output/ipip-neo_matrix-cfi-full.csv")
-write.csv(matrix_tli,   "output/ipip-neo_matrix-tli-full.csv")
-write.csv(matrix_rmsea, "output/ipip-neo_matrix-rmsea-full.csv")
-write.csv(matrix_bic,   "output/ipip-neo_matrix-bic-full.csv")
+write.csv(matrix_cfi,   "output/ipip-neo_matrix-cfi-test.csv")
+write.csv(matrix_tli,   "output/ipip-neo_matrix-tli-test.csv")
+write.csv(matrix_rmsea, "output/ipip-neo_matrix-rmsea-test.csv")
+write.csv(matrix_bic,   "output/ipip-neo_matrix-bic-test.csv")
 
 ### Readable (rounded to three digits)
 
-write.csv(round(matrix_cfi, 3),   "output/ipip-neo_matrix-cfi-rounded.csv")
-write.csv(round(matrix_tli, 3),   "output/ipip-neo_matrix-tli-rounded.csv")
-write.csv(round(matrix_rmsea, 3), "output/ipip-neo_matrix-rmsea-rounded.csv")
+write.csv(round(matrix_cfi, 3),   "output/ipip-neo_matrix-cfi-test-rounded.csv")
+write.csv(round(matrix_tli, 3),   "output/ipip-neo_matrix-tli-test-rounded.csv")
+write.csv(round(matrix_rmsea, 3), "output/ipip-neo_matrix-rmsea-test-rounded.csv")
 
 # Visualization and description ------------------------------------------------
 
@@ -283,15 +272,6 @@ cross_country_fit <- cross_country_fit %>%
     )
   )
 
-## Long form CFI data
-
-ipip_cfi_long <- ipip_comparison %>% 
-  pivot_longer(
-    cols = starts_with("cfi"),
-    names_to = "model",
-    values_to = "cfi"
-  )
-
 ## Cross country BIC comparison
 
 cross_country_bic <- cross_country_fit %>%
@@ -309,7 +289,7 @@ bic_summary <- cross_country_bic %>%
   ) %>% 
   ungroup()
 
-## Long form BIC data
+## Long form BIC data for model comparison
 
 test_data_bic_long <- ipip_comparison %>% 
   pivot_longer(
@@ -317,29 +297,16 @@ test_data_bic_long <- ipip_comparison %>%
     names_to = "model",
     values_to = "bic"
   ) %>% 
-  group_by(country) %>% 
-  mutate(
-    bic_scaled = as.numeric(scale(bic))
-  ) %>% 
-  ungroup()
-
-full_data_bic_long <- cfa_fits %>% 
-  left_join(
-    select(confirmatory_networks, country, bic_network),
-    by = "country"
-  ) %>% 
   left_join(
     select(bic_summary, country = country_2, mean_bic, sd_bic),
     by = "country"
   ) %>% 
-  pivot_longer(
-    cols = starts_with("bic"),
-    names_to = "model",
-    values_to = "bic"
-  ) %>% 
   group_by(country) %>% 
   mutate(
-    bic_scaled = (bic - mean_bic)/sd_bic
+    # Scaled for cross-country network comparison
+    bic_scaled      = (bic - mean_bic) / sd_bic,
+    # Scaled for network to factor model comparison
+    bic_scaled_comp = as.numeric(scale(bic))
   ) %>% 
   ungroup()
 
@@ -389,7 +356,7 @@ ggplot(cross_country_bic,
     alpha = .50
   ) +
   geom_point(
-    data = full_data_bic_long,
+    data = test_data_bic_long,
     aes(
       y = country
     ),
@@ -413,7 +380,7 @@ ggplot(cross_country_bic,
     x     = "BIC (standardized within country)",
     color = "Model Origin",
     size  = "Model Origin",
-    subtitle = "Cross-Country Network Invariance\n(full data)"
+    subtitle = "Cross-Country Network Invariance"
   ) +
   theme_classic() +
   theme(
@@ -423,7 +390,7 @@ ggplot(cross_country_bic,
 swarm_bic_model_comparison <- 
   ggplot(test_data_bic_long,
          aes(
-           x     = bic_scaled,
+           x     = bic_scaled_comp,
            y     = country,
            color = as.factor(model)
          )) +
@@ -441,91 +408,12 @@ swarm_bic_model_comparison <-
     color = "Model",
     y = "",
     x = "BIC (standardized within country)",
-    subtitle = "Comparison of models\n(test data)"
+    subtitle = "Comparison of models"
   ) +
   theme_classic() +
   theme(
     legend.position = "bottom"
   )
-
-## CFI
-
-swarm_cfi_cross_country <- 
-ggplot(cross_country_fit,
-       aes(
-         x     = cfi_network,
-         y     = country_1,
-         color = as.factor(model_source),
-         size  = as.factor(model_source),
-       )) +
-  geom_vline(
-    xintercept = .95,
-    linetype = "dashed"
-  ) +
-  geom_quasirandom(
-    alpha = .50
-  ) +
-  scale_color_manual(
-    values = c("#355070", "#53131E"),
-    labels = c("Other Countries", "Origin")
-  ) +
-  scale_size_discrete(
-    range = c(.50, 1.5),
-    labels = c("Other Countries", "Origin")
-  ) +
-  scale_y_discrete(
-    labels = country_names
-  ) +
-  scale_x_continuous(
-    breaks = seq(.80, 1.00, .05)
-  ) +
-  labs(
-    y     = "",
-    x     = "CFI",
-    color = "Network Model Data",
-    size  = "Network Model Data",
-    subtitle = "Cross-Country Network Invariance"
-  ) +
-  theme_classic() +
-  theme(
-    legend.position = "bottom"
-  )
-
-swarm_cfi_model_comparison <- 
-ggplot(ipip_cfi_long,
-       aes(
-         x     = cfi,
-         y     = country,
-         color = as.factor(model)
-       )) +
-  geom_vline(
-    xintercept = .95,
-    linetype = "dashed"
-  ) +
-  geom_point(
-    size = 1
-  ) +
-  scale_color_manual(
-    labels = c("Bifactor", "Big Five", "Higher Order", "Network"),
-    values = c("#37123C", "#FE7F2D", "#5995ED", "#619B8A")
-  ) +
-  scale_y_discrete(
-    labels = country_names
-  ) +
-  scale_x_continuous(
-    breaks = seq(.40, 1.00, .05)
-  ) +
-  labs(
-    color = "Model",
-    y = "",
-    x = "CFI",
-    subtitle = "Comparison of models\n(test data)"
-  ) +
-  theme_classic() +
-  theme(
-    legend.position = "bottom"
-  )
-
 
 ## Combine plots
 
@@ -533,14 +421,7 @@ swarm_plots_bic <- plot_grid(swarm_bic_model_comparison,
                              swarm_bic_cross_country, 
                              nrow = 1, rel_widths = c(1, 1.1))
 
-swarm_plots_cfi <- plot_grid(swarm_cfi_model_comparison, 
-                             swarm_cfi_cross_country, 
-                             nrow = 1, rel_widths = c(1, 1.1))
-
 ## Save figure
 
-save_plot("figures/ipip-neo_bic_model-comparison-swarms.png", swarm_plots_bic,
-          base_width = 10.5, base_height = 8)
-
-save_plot("figures/ipip-neo_cfi_model-comparison-swarms.png", swarm_plots_cfi,
+save_plot("figures/ipip-neo_bic_test-data_model-comparison-swarms.png", swarm_plots_bic,
           base_width = 10.5, base_height = 8)

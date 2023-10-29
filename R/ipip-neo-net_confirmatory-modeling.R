@@ -1,6 +1,6 @@
 ################################################################################
 
-# IPIP-NEO Network Analysis - Confirmatory Network Modeling
+# IPIP-NEO Network Analysis - Confirmatory Network Modeling (Full Data)
 
 ################################################################################
 

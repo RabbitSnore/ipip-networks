@@ -619,10 +619,10 @@ if (!file.exists("output/ipip-neo_model-comparison-data.rds")) {
 
 } else {
   
-  comparison_data <- write_rds("output/ipip-neo_model-comparison-data.rds")
+  comparison_data <- read_rds("output/ipip-neo_model-comparison-data.rds")
   
 }
-  
+
 if (!file.exists("output/ipip-neo_model-comparison-data.csv")) {
   
   # Export simplified output
@@ -766,5 +766,65 @@ if (!file.exists("output/ipip-neo_cfa-fits.rds")) {
 } else {
   
   cfa_fits <- read_rds("output/ipip-neo_cfa-fits.rds")
+  
+}
+
+# Extract and save training and test data --------------------------------------
+
+# Why wasn't this incorporated into the loop above? Quite simply, saving these
+# separate data sets for convenient later use was decided on after the network
+# and factor modeling loop was written and executed.
+
+if (!dir.exists("data/training/")) {
+  
+  dir.create("data/training/")
+  
+}
+
+if (!dir.exists("data/test/")) {
+  
+  dir.create("data/test/")
+  
+}
+
+for (i in 1:length(countries)) {
+  
+  country_current <- names(countries[i])
+  
+  # Select relevant cases
+  
+  model_data <- ipip %>% 
+    filter(country == country_current) %>%
+    select(starts_with("i")) %>% 
+    filter(complete.cases(.))
+  
+  # Update sample size in the countries vector
+  
+  countries[i] <- nrow(model_data)
+  
+  # Split into training and test sets
+  
+  set.seed(seed_list[i])
+  
+  training_indices <- sample(1:countries[i], 
+                             size = round(countries[i]*train_test_ratio[1]), 
+                             replace = FALSE)
+  
+  training_data    <- model_data[ training_indices, ] 
+  test_data        <- model_data[-training_indices, ]
+  
+  write_csv(training_data,
+            paste("data/training/ipip-neo_training_", 
+                  tolower(country_current), 
+                  ".csv", 
+                  sep = "")
+            )
+  
+  write_csv(test_data,
+            paste("data/test/ipip-neo_test_", 
+                  tolower(country_current), 
+                  ".csv", 
+                  sep = "")
+  )
   
 }
