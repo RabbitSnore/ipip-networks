@@ -329,8 +329,8 @@ n =~ anxiety + anger + depression + self_consciousness + immoderation + vulnerab
 
 # Parallel computing set up
 
-# IMPORTANT! modify this for your system. do not assume this default will work
-# if you are reproducing the analyses. running this code and not running a
+# IMPORTANT! Modify this for your system. Do not assume this default will work
+# if you are reproducing the analyses. Running this code and not running a
 # parallelized process will not be harmful, but you could have a suboptimal
 # experience using this code without modifications tailored for your computing
 # environment.
@@ -415,55 +415,47 @@ comparison_data$omega_list <- omega_list
 # should be). On a typical personal computer, you can expect this loop to take
 # many hours.
 
-for (i in 1:length(countries)) {
-  
-  country_current <- names(countries[i])
-  
-  # Select relevant cases
-  
-  model_data <- ipip %>% 
-    filter(country == country_current) %>%
-    select(starts_with("i")) %>% 
-    filter(complete.cases(.))
-  
-  # Update sample size in the countries vector
-  
-  countries[i] <- nrow(model_data)
-  
-  # Split into training and test sets
-  
-  set.seed(seed_list[i])
-  
-  training_indices <- sample(1:countries[i], 
-                             size = round(countries[i]*train_test_ratio[1]), 
-                             replace = FALSE)
-  
-  training_data    <- model_data[ training_indices, ] 
-  test_data        <- model_data[-training_indices, ] 
-  
-  comparison_data$n_train[i] <- nrow(training_data)
-  comparison_data$n_test[i]  <- nrow(test_data)
-  
-  # Fit training model
-  
-  training_network <- EBICglasso(cov(training_data),
-                                 n = nrow(training_data),
-                                 nlambda = 1000,
-                                 lambda.min.ratio = 0.01,
-                                 returnAllResults = TRUE)
-  
-  ## Repeat training fit if sparsity may be violated
-  
-  lambda_index <- which(training_network$ebic == min(training_network$ebic))
-  lambda_opt   <- training_network$lambda[lambda_index]
-  
-  if (lambda_opt == min(training_network$lambda)) {
+if (!file.exists("output/ipip-neo_model-comparison-data.rds")) {
+
+
+  for (i in 1:length(countries)) {
+    
+    country_current <- names(countries[i])
+    
+    # Select relevant cases
+    
+    model_data <- ipip %>% 
+      filter(country == country_current) %>%
+      select(starts_with("i")) %>% 
+      filter(complete.cases(.))
+    
+    # Update sample size in the countries vector
+    
+    countries[i] <- nrow(model_data)
+    
+    # Split into training and test sets
+    
+    set.seed(seed_list[i])
+    
+    training_indices <- sample(1:countries[i], 
+                               size = round(countries[i]*train_test_ratio[1]), 
+                               replace = FALSE)
+    
+    training_data    <- model_data[ training_indices, ] 
+    test_data        <- model_data[-training_indices, ] 
+    
+    comparison_data$n_train[i] <- nrow(training_data)
+    comparison_data$n_test[i]  <- nrow(test_data)
+    
+    # Fit training model
     
     training_network <- EBICglasso(cov(training_data),
                                    n = nrow(training_data),
-                                   nlambda = 10000, # Increase tested lambdas
-                                   lambda.min.ratio = 0.1, # Increase ratio
+                                   nlambda = 1000,
+                                   lambda.min.ratio = 0.01,
                                    returnAllResults = TRUE)
+    
+    ## Repeat training fit if sparsity may be violated
     
     lambda_index <- which(training_network$ebic == min(training_network$ebic))
     lambda_opt   <- training_network$lambda[lambda_index]
@@ -472,137 +464,158 @@ for (i in 1:length(countries)) {
       
       training_network <- EBICglasso(cov(training_data),
                                      n = nrow(training_data),
-                                     nlambda = 100000, # Increase tested lambdas
-                                     threshold = TRUE, # Enforce threshold
-                                     lambda.min.ratio = 0.1,
+                                     nlambda = 10000, # Increase tested lambdas
+                                     lambda.min.ratio = 0.1, # Increase ratio
                                      returnAllResults = TRUE)
+      
+      lambda_index <- which(training_network$ebic == min(training_network$ebic))
+      lambda_opt   <- training_network$lambda[lambda_index]
+      
+      if (lambda_opt == min(training_network$lambda)) {
+        
+        training_network <- EBICglasso(cov(training_data),
+                                       n = nrow(training_data),
+                                       nlambda = 100000, # Increase tested lambdas
+                                       threshold = TRUE, # Enforce threshold
+                                       lambda.min.ratio = 0.1,
+                                       returnAllResults = TRUE)
+        
+      }
       
     }
     
-  }
-  
-  ## Extract training model skeleton
-  
-  omega_skeleton <- training_network$optnet
-  
-  omega_skeleton[omega_skeleton != 0] <- 1
-  
-  comparison_data$omega_list[[i]] <- omega_skeleton
-  
-  # Fit test model
-  
-  test_network <- 
-    varcov(data  = test_data,
-           type  = "ggm",
-           omega = omega_skeleton) %>% 
-    runmodel()
-  
-  ## Calculate fit indices
-  
-  test_net_fit <- fit(test_network)
-  
-  # Fit five-factor models
-  
-  test_big_five <- cfa(big_five,
-                       data = test_data,
-                       estimator = "ML")
-  
-  test_bifactor <- cfa(bifactor,
-                       data = test_data,
-                       estimator = "ML")
-  
-  test_higher   <- cfa(higher_order,
-                       data = test_data,
-                       estimator  = "ML",
-                       orthogonal.y = TRUE)
-  
-  ## Calculate fit indices
-  
-  ### Big Five
-  
-  if (test_big_five@optim$converged == TRUE) {
+    ## Extract training model skeleton
     
-    test_big_five_fit <- fitmeasures(test_big_five, 
+    omega_skeleton <- training_network$optnet
+    
+    omega_skeleton[omega_skeleton != 0] <- 1
+    
+    comparison_data$omega_list[[i]] <- omega_skeleton
+    
+    # Fit test model
+    
+    test_network <- 
+      varcov(data  = test_data,
+             type  = "ggm",
+             omega = omega_skeleton) %>% 
+      runmodel()
+    
+    ## Calculate fit indices
+    
+    test_net_fit <- fit(test_network)
+    
+    # Fit five-factor models
+    
+    test_big_five <- cfa(big_five,
+                         data = test_data,
+                         estimator = "ML")
+    
+    test_bifactor <- cfa(bifactor,
+                         data = test_data,
+                         estimator = "ML")
+    
+    test_higher   <- cfa(higher_order,
+                         data = test_data,
+                         estimator  = "ML",
+                         orthogonal.y = TRUE)
+    
+    ## Calculate fit indices
+    
+    ### Big Five
+    
+    if (test_big_five@optim$converged == TRUE) {
+      
+      test_big_five_fit <- fitmeasures(test_big_five, 
+                                       fit.measures = c("cfi", "tli", "rmsea", "bic"))
+      
+    } else {
+      
+      test_big_five_fit <- c("cfi" = NA, "tli" = NA, "rmsea" = NA, "bic" = NA)
+      
+    }
+    
+    if (test_big_five@optim$converged == TRUE) {
+      
+      test_big_five_fit <- fitmeasures(test_big_five, 
+                                       fit.measures = c("cfi", "tli", "rmsea", "bic"))
+      
+    } else {
+      
+      test_big_five_fit <- c("cfi" = NA, "tli" = NA, "rmsea" = NA, "bic" = NA)
+      
+    }
+    
+    ### Bifactor
+    
+    if (test_bifactor@optim$converged == TRUE) {
+      
+      test_bifactor_fit <- fitmeasures(test_bifactor, 
                                      fit.measures = c("cfi", "tli", "rmsea", "bic"))
+      
+    } else {
+      
+      test_bifactor_fit <- c("cfi" = NA, "tli" = NA, "rmsea" = NA, "bic" = NA)
+      
+    }
     
-  } else {
+    ### Higher Order
     
-    test_big_five_fit <- c("cfi" = NA, "tli" = NA, "rmsea" = NA, "bic" = NA)
-    
-  }
-  
-  if (test_big_five@optim$converged == TRUE) {
-    
-    test_big_five_fit <- fitmeasures(test_big_five, 
+    if (test_higher@optim$converged == TRUE) {
+      
+      test_higher_fit <- fitmeasures(test_higher, 
                                      fit.measures = c("cfi", "tli", "rmsea", "bic"))
+      
+    } else {
+      
+      test_higher_fit <- c("cfi" = NA, "tli" = NA, "rmsea" = NA, "bic" = NA)
+      
+    }
     
-  } else {
+    # Record fit indices
     
-    test_big_five_fit <- c("cfi" = NA, "tli" = NA, "rmsea" = NA, "bic" = NA)
+    comparison_data$cfi_network[i]    <- test_net_fit$Value[test_net_fit$Measure == "cfi"]
+    comparison_data$cfi_big_five[i]   <- test_big_five_fit[names(test_big_five_fit) == "cfi"]
+    comparison_data$cfi_bifactor[i]   <- test_bifactor_fit[names(test_bifactor_fit) == "cfi"]
+    comparison_data$cfi_higher[i]     <- test_higher_fit[names(test_higher_fit) == "cfi"]
     
+    comparison_data$tli_network[i]    <- test_net_fit$Value[test_net_fit$Measure == "tli"]
+    comparison_data$tli_big_five[i]   <- test_big_five_fit[names(test_big_five_fit) == "tli"]
+    comparison_data$tli_bifactor[i]   <- test_bifactor_fit[names(test_bifactor_fit) == "tli"]
+    comparison_data$tli_higher[i]     <- test_higher_fit[names(test_higher_fit) == "tli"]
+    
+    comparison_data$rmsea_network[i]  <- test_net_fit$Value[test_net_fit$Measure == "rmsea"]
+    comparison_data$rmsea_big_five[i] <- test_big_five_fit[names(test_big_five_fit) == "rmsea"]
+    comparison_data$rmsea_bifactor[i] <- test_bifactor_fit[names(test_bifactor_fit) == "rmsea"]
+    comparison_data$rmsea_higher[i]   <- test_higher_fit[names(test_higher_fit) == "rmsea"]
+    
+    comparison_data$bic_network[i]    <- test_net_fit$Value[test_net_fit$Measure == "bic"]
+    comparison_data$bic_big_five[i]   <- test_big_five_fit[names(test_big_five_fit) == "bic"]
+    comparison_data$bic_bifactor[i]   <- test_bifactor_fit[names(test_bifactor_fit) == "bic"]
+    comparison_data$bic_higher[i]     <- test_higher_fit[names(test_higher_fit) == "bic"]
+    
+    # Save current iteration
+    
+    write_rds(comparison_data, 
+              file = "output/ipip-neo_model-comparison-data.rds")
+      
+  
   }
-  
-  ### Bifactor
-  
-  if (test_bifactor@optim$converged == TRUE) {
-    
-    test_bifactor_fit <- fitmeasures(test_bifactor, 
-                                   fit.measures = c("cfi", "tli", "rmsea", "bic"))
-    
-  } else {
-    
-    test_bifactor_fit <- c("cfi" = NA, "tli" = NA, "rmsea" = NA, "bic" = NA)
-    
-  }
-  
-  ### Higher Order
-  
-  if (test_higher@optim$converged == TRUE) {
-    
-    test_higher_fit <- fitmeasures(test_higher, 
-                                   fit.measures = c("cfi", "tli", "rmsea", "bic"))
-    
-  } else {
-    
-    test_higher_fit <- c("cfi" = NA, "tli" = NA, "rmsea" = NA, "bic" = NA)
-    
-  }
-  
-  # Record fit indices
-  
-  comparison_data$cfi_network[i]    <- test_net_fit$Value[test_net_fit$Measure == "cfi"]
-  comparison_data$cfi_big_five[i]   <- test_big_five_fit[names(test_big_five_fit) == "cfi"]
-  comparison_data$cfi_bifactor[i]   <- test_bifactor_fit[names(test_bifactor_fit) == "cfi"]
-  comparison_data$cfi_higher[i]     <- test_higher_fit[names(test_higher_fit) == "cfi"]
-  
-  comparison_data$tli_network[i]    <- test_net_fit$Value[test_net_fit$Measure == "tli"]
-  comparison_data$tli_big_five[i]   <- test_big_five_fit[names(test_big_five_fit) == "tli"]
-  comparison_data$tli_bifactor[i]   <- test_bifactor_fit[names(test_bifactor_fit) == "tli"]
-  comparison_data$tli_higher[i]     <- test_higher_fit[names(test_higher_fit) == "tli"]
-  
-  comparison_data$rmsea_network[i]  <- test_net_fit$Value[test_net_fit$Measure == "rmsea"]
-  comparison_data$rmsea_big_five[i] <- test_big_five_fit[names(test_big_five_fit) == "rmsea"]
-  comparison_data$rmsea_bifactor[i] <- test_bifactor_fit[names(test_bifactor_fit) == "rmsea"]
-  comparison_data$rmsea_higher[i]   <- test_higher_fit[names(test_higher_fit) == "rmsea"]
-  
-  comparison_data$bic_network[i]    <- test_net_fit$Value[test_net_fit$Measure == "bic"]
-  comparison_data$bic_big_five[i]   <- test_big_five_fit[names(test_big_five_fit) == "bic"]
-  comparison_data$bic_bifactor[i]   <- test_bifactor_fit[names(test_bifactor_fit) == "bic"]
-  comparison_data$bic_higher[i]     <- test_higher_fit[names(test_higher_fit) == "bic"]
-  
-  # Save current iteration
-  
-  write_rds(comparison_data, 
-            file = "output/ipip-neo_model-comparison-data.rds")
-    
 
+} else {
+  
+  comparison_data <- write_rds("output/ipip-neo_model-comparison-data.rds")
+  
 }
-
-# Export simplified output
-
-write_csv(comparison_data %>% 
-            select(-omega_list),
-          file = "output/ipip-neo_model-comparison-data.csv")
+  
+if (!file.exists("output/ipip-neo_model-comparison-data.csv")) {
+  
+  # Export simplified output
+  
+  write_csv(comparison_data %>% 
+              select(-omega_list),
+            file = "output/ipip-neo_model-comparison-data.csv")
+  
+}
 
 # Factor model fit statistics from full data -----------------------------------
 

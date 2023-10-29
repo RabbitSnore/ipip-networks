@@ -27,7 +27,7 @@ if (!file.exists("data/ipip-neo_cleaned.csv")) {
 
 # Network and factor model comparison
 
-if (!file.exists("output/ipip-neo_model-comparison-data.rds")) {
+if (!file.exists("output/ipip-neo_model-comparison-data.rds") | !file.exists("output/ipip-neo_cfa-fits.rds")) {
   
   source("R/ipip-neo-net_network-modeling.R")
   
@@ -39,4 +39,4 @@ source("R/ipip-neo-net_confirmatory-modeling.R")
 
 # Cross-country network model fitting
 
-source("R/ipip-neo-net_confirmatory-modeling.R")
+source("R/ipip-neo-net_cross-country-modeling.R")

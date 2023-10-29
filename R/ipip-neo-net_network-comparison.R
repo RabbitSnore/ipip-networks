@@ -55,8 +55,8 @@ nct_iterations <- 1000
 
 # Parallel computing set up
 
-# IMPORTANT! modify this for your system. do not assume this default will work
-# if you are reproducing the analyses. running this code and not running a
+# IMPORTANT! Modify this for your system. Do not assume this default will work
+# if you are reproducing the analyses. Running this code and not running a
 # parallelized process will not be harmful, but you could have a suboptimal
 # experience using this code without modifications tailored for your computing
 # environment.
