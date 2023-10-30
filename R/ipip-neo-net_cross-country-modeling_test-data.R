@@ -348,6 +348,34 @@ cross_country_bf_descriptives <- cross_country_bf %>%
     prop_origin     = sum(bf_e_power > 0)/n()
   )
 
+### Best competitor vs. origin model
+
+cross_country_bic_min <- cross_country_fit %>%
+  filter(!(country_1 == country_2)) %>% 
+  group_by(country_2) %>% 
+  summarise(
+    country_comp   = country_1[which(bic_network == min(bic_network))],
+    bic_comparison = min(bic_network)
+  )
+
+best_competitor_bf <- cross_country_fit %>% 
+  filter(country_1 == country_2) %>% 
+  left_join(cross_country_bic_min, by = "country_2") %>% 
+  mutate(
+    bf_origin  = exp( (bic_comparison - bic_network) / 2 ),
+    bf_e_power = (bic_comparison - bic_network) / 2
+  ) %>% 
+  select(country_2, country_comp, bf_origin, bf_e_power)
+
+### Join data
+
+cross_country_bf_descriptives <- cross_country_bf_descriptives %>% 
+  left_join(best_competitor_bf, by = "country_2") %>% 
+  select(country = country_2, everything())
+
+write_csv(cross_country_bf_descriptives, 
+          "output/ipip-neo_origin-model-performance.csv")
+
 # Swarm plots of fit statistics
 
 ## BIC
@@ -427,9 +455,9 @@ swarm_bic_model_comparison <-
 
 swarm_plots_bic <- plot_grid(swarm_bic_model_comparison, 
                              swarm_bic_cross_country, 
-                             nrow = 1, rel_widths = c(1, 1.1))
+                             nrow = 1, rel_widths = c(1, 1))
 
 ## Save figure
 
 save_plot("figures/ipip-neo_bic_test-data_model-comparison-swarms.png", swarm_plots_bic,
-          base_width = 10.5, base_height = 8)
+          base_width = 10.50, base_height = 7)
