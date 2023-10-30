@@ -323,21 +323,29 @@ cross_country_best <- cross_country_fit %>%
     country = country_2
   )
 
-## Bayes factors for origin networks vs. best alternative model
-
-cross_country_bic_min <- cross_country_fit %>%
-  filter(!(country_1 == country_2)) %>% 
-  group_by(country_2) %>% 
-  summarise(
-    bic_comparison = min(bic_network)
-  )
+## Bayes factors for each country's model vs. origin's model
 
 cross_country_bf <- cross_country_fit %>% 
-  filter(country_1 == country_2) %>% 
-  left_join(cross_country_bic_min, by = "country_2") %>% 
+  left_join(
+    select(
+      filter(cross_country_fit,
+             country_1 == country_2),
+      country_2,
+      bic_origin = bic_network
+    ), 
+    by = "country_2"
+  ) %>% 
   mutate(
-    bf_origin  = exp( (bic_comparison - bic_network) / 2 ),
-    bf_e_power = (bic_comparison - bic_network) / 2
+    bf_origin  = exp( (bic_network - bic_origin) / 2 ),
+    bf_e_power = (bic_network - bic_origin) / 2
+  ) %>% 
+  filter(country_1 != country_2)
+
+cross_country_bf_descriptives <- cross_country_bf %>% 
+  group_by(country_2) %>% 
+  summarise(
+    origin_in_favor = sum(bf_e_power > 0),
+    prop_origin     = sum(bf_e_power > 0)/n()
   )
 
 # Swarm plots of fit statistics

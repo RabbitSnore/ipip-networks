@@ -39,4 +39,4 @@ source("R/ipip-neo-net_confirmatory-modeling.R")
 
 # Cross-country network model fitting
 
-source("R/ipip-neo-net_cross-country-modeling.R")
+source("R/ipip-neo-net_cross-country-modeling_test-data.R")
