@@ -11,3 +11,22 @@ both RDS and CSV files. The RDS files contain a list column with the omega
 matrix from the network models (i.e., the network structure), and the CSV files
 omit this column. If you just want to glance through things, the CSV files are
 more convenient. But the RDS files are more complete.
+
+# Manifest
+
+```
+"ipip-neo_cfa-fits.rds"                    Fit statistics for factor models fit to full country data (unused)           
+"ipip-neo_confirmatory-networks.rds"       Network models fit to full country data
+"ipip-neo_country-descriptives.csv"        Descriptives for the included sample
+"ipip-neo_cross-country-test-data.rds"     Fit statistics for cross-country network models
+"ipip-neo_matrix-bic-test.csv"             Matrix of cross-country models' BICs
+"ipip-neo_matrix-cfi-test-rounded.csv"     Matrix of cross-country models' CFIs, rounded for readability
+"ipip-neo_matrix-cfi-test.csv"             Matrix of cross-country models' CFIs
+"ipip-neo_matrix-rmsea-test-rounded.csv"   Matrix of cross-country models' RMSEAs, rounded for readability
+"ipip-neo_matrix-rmsea-test.csv"           Matrix of cross-country models' RMSEAs
+"ipip-neo_matrix-tli-test-rounded.csv"     Matrix of cross-country models' TLIs, rounded for readability
+"ipip-neo_matrix-tli-test.csv"             Matrix of cross-country models' TlIs
+"ipip-neo_model-comparison-data.csv"       Fit statistic for factor and network models in test data
+"ipip-neo_model-comparison-data.rds"       Fit statistics for factor and network models in test data, with adjacency matrices 
+"ipip-neo_origin-model-performance.csv"    Model comparison statistics of country's own network vs other countries'
+```

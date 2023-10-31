@@ -7,6 +7,15 @@ Framework:
 Johnson, J. A. (2020, October 13). Johnson’s IPIP-NEO data repository. Retrieved
 from https://osf.io/tbmh5
 
+The contents of this repository are licensed under the GPL-3.
+
+## Repository Structure
+
+- `R` contains the code for the quantitative analyses and visualizations
+- `output` contains data produced by the analyses, including network models and fit statistics
+- `data` will be created by a script that downloads, cleans, and wrangles the data
+- `figures` contains the stored data visualizations, with the exception of those that are too large for GitHub
+
 ## Reproducing the Analyses
 
 The most efficient way of reproducing the results is to run

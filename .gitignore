@@ -55,3 +55,7 @@ data/*
 # Large figures
 
 figures/network-grids/*
+
+# Unused output
+
+output/*full*
