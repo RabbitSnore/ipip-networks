@@ -29,4 +29,6 @@ more convenient. But the RDS files are more complete.
 "ipip-neo_model-comparison-data.csv"       Fit statistic for factor and network models in test data
 "ipip-neo_model-comparison-data.rds"       Fit statistics for factor and network models in test data, with adjacency matrices 
 "ipip-neo_origin-model-performance.csv"    Model comparison statistics of country's own network vs other countries'
+"ipip-neo_similarity-network-weighted.csv" Matrix of sum of all edge weights across country-specific models  
+"ipip-neo_similarity-network.csv"          Matrix of frequency of edges across country-specific models
 ```

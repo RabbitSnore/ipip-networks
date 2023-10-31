@@ -12,7 +12,8 @@ packages <- c("tidyverse",
               "doParallel",
               "readxl",
               "ggbeeswarm",
-              "cowplot")
+              "cowplot",
+              "qgraph")
 
 lapply(packages, library, character.only = TRUE)
 
@@ -461,3 +462,45 @@ swarm_plots_bic <- plot_grid(swarm_bic_model_comparison,
 
 save_plot("figures/ipip-neo_bic_test-data_model-comparison-swarms.png", swarm_plots_bic,
           base_width = 10.50, base_height = 7)
+
+# Network similarities ---------------------------------------------------------
+
+# Matrix of frequency of networks featuring each edge
+
+similarity_network <- Reduce("+", ipip_comparison$omega_list)
+
+dimnames(similarity_network) <- list(1:120, 1:120)
+
+qgraph(similarity_network,
+       layout    = "spring",
+       groups    = as.factor(ipip_key$trait),
+       theme     = "colorblind",
+       filename  = "figures/ipip-neo_similarity-network",
+       filetype  = "png",
+       height    = 8,
+       width     = 8,
+       legend    = TRUE
+)
+
+write_csv(as.data.frame(similarity_network), 
+          "output/ipip-neo_similarity-network.csv")
+
+# Matrix of sum of all weighted edges across all countries' networks
+
+similarity_network_weighted <- Reduce("+", confirmatory_networks$omega_matrix)
+
+dimnames(similarity_network_weighted) <- list(1:120, 1:120)
+
+qgraph(similarity_network_weighted,
+       layout    = "spring",
+       groups    = as.factor(ipip_key$trait),
+       theme     = "colorblind",
+       filename  = "figures/ipip-neo_similarity-network-weighted",
+       filetype  = "png",
+       height    = 8,
+       width     = 8,
+       legend    = TRUE
+)
+
+write_csv(as.data.frame(similarity_network_weighted), 
+          "output/ipip-neo_similarity-network-weighted.csv")
