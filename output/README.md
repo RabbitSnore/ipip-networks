@@ -25,7 +25,7 @@ more convenient. But the RDS files are more complete.
 "ipip-neo_matrix-rmsea-test-rounded.csv"   Matrix of cross-country models' RMSEAs, rounded for readability
 "ipip-neo_matrix-rmsea-test.csv"           Matrix of cross-country models' RMSEAs
 "ipip-neo_matrix-tli-test-rounded.csv"     Matrix of cross-country models' TLIs, rounded for readability
-"ipip-neo_matrix-tli-test.csv"             Matrix of cross-country models' TlIs
+"ipip-neo_matrix-tli-test.csv"             Matrix of cross-country models' TLIs
 "ipip-neo_model-comparison-data.csv"       Fit statistic for factor and network models in test data
 "ipip-neo_model-comparison-data.rds"       Fit statistics for factor and network models in test data, with adjacency matrices 
 "ipip-neo_origin-model-performance.csv"    Model comparison statistics of country's own network vs other countries'
