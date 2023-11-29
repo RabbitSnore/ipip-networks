@@ -292,6 +292,11 @@ bic_summary <- cross_country_bic %>%
 
 ## Long form BIC data for model comparison
 
+esem_data <- read_rds("output/ipip-neo_ffm-esem-model-fit.rds")
+
+ipip_comparison <- ipip_comparison %>% 
+  left_join(esem_data, by = "country")
+
 test_data_bic_long <- ipip_comparison %>% 
   pivot_longer(
     cols = starts_with("bic"),
@@ -420,6 +425,9 @@ ggplot(cross_country_bic,
     subtitle = "Cross-Country Network Invariance"
   ) +
   theme_classic() +
+  guides(
+    color = guide_legend(nrow = 2)
+  ) +
   theme(
     legend.position = "bottom"
   )
@@ -435,8 +443,8 @@ swarm_bic_model_comparison <-
     size = 1
   ) +
   scale_color_manual(
-    labels = c("Bifactor", "Big Five", "Higher Order", "Network"),
-    values = c("#37123C", "#FE7F2D", "#5995ED", "#619B8A")
+    labels = c("Bifactor", "Big Five", "ESEM", "Higher Order", "Network"),
+    values = c("#37123C", "#FE7F2D", "#EFAAC4", "#5995ED", "#619B8A")
   ) +
   scale_y_discrete(
     labels = country_names
@@ -448,6 +456,9 @@ swarm_bic_model_comparison <-
     subtitle = "Comparison of models"
   ) +
   theme_classic() +
+  guides(
+    color = guide_legend(nrow = 2)
+  ) +
   theme(
     legend.position = "bottom"
   )
