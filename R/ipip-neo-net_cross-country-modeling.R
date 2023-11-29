@@ -102,7 +102,7 @@ if (!file.exists("output/ipip-neo_cross-country-test-data.rds")) {
     country_2 <- country_pairs$country_2[i]
     
     ipip_subset <- read_csv(paste("data/test/ipip-neo_test_", 
-                                  tolower(country_2), 
+                                  str_replace_all(tolower(country_2), " ", "_"), 
                                   ".csv", 
                                   sep = ""))
     
@@ -471,7 +471,8 @@ swarm_plots_bic <- plot_grid(swarm_bic_model_comparison,
 
 ## Save figure
 
-save_plot("figures/ipip-neo_bic_test-data_model-comparison-swarms.png", swarm_plots_bic,
+save_plot("figures/ipip-neo_bic_test-data_model-comparison-swarms.png", 
+          swarm_plots_bic,
           base_width = 10.50, base_height = 7)
 
 # Network similarities ---------------------------------------------------------

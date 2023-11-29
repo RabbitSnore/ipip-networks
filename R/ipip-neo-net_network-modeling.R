@@ -815,14 +815,14 @@ for (i in 1:length(countries)) {
   
   write_csv(training_data,
             paste("data/training/ipip-neo_training_", 
-                  tolower(country_current), 
+                  str_replace_all(tolower(country_current), " ", "_"), 
                   ".csv", 
                   sep = "")
             )
   
   write_csv(test_data,
             paste("data/test/ipip-neo_test_", 
-                  tolower(country_current), 
+                  str_replace_all(tolower(country_current), " ", "_"), 
                   ".csv", 
                   sep = "")
   )

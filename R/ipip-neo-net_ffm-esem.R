@@ -84,12 +84,12 @@ if (!file.exists("output/ipip-neo_ffm-esem-model-fit.rds")) {
    # Load training and test data
    
    training_data <- read_csv(paste("data/training/ipip-neo_training_", 
-                                   tolower(country_current), 
+                                   str_replace_all(tolower(country_current), " ", "_"), 
                                    ".csv", 
                                    sep = ""))
    
    test_data     <- read_csv(paste("data/test/ipip-neo_test_", 
-                                   tolower(country_current), 
+                                   str_replace_all(tolower(country_current), " ", "_"), 
                                    ".csv", 
                                    sep = ""))
 
@@ -110,7 +110,7 @@ if (!file.exists("output/ipip-neo_ffm-esem-model-fit.rds")) {
    
    write_lines(esem_specs,
                paste("output/ffm-esem/ipip-neo_esem-syntax_", 
-                     tolower(country_current),
+                     str_replace_all(tolower(country_current), " ", "_"),
                      ".txt",
                      sep = ""))
   
@@ -129,7 +129,7 @@ if (!file.exists("output/ipip-neo_ffm-esem-model-fit.rds")) {
      
      write_rds(esem_std,
                paste("output/ffm-esem/ipip-neo_esem-std-solution_", 
-                     tolower(country_current),
+                     str_replace_all(tolower(country_current), " ", "_"),
                      ".rds",
                      sep = ""))
      
@@ -191,12 +191,12 @@ if (!file.exists("output/ipip-neo_uc-esem-model-fit.rds")) {
    # Load training and test data
    
    training_data <- read_csv(paste("data/training/ipip-neo_training_", 
-                                   tolower(country_current), 
+                                   str_replace_all(tolower(country_current), " ", "_"), 
                                    ".csv", 
                                    sep = ""))
    
    test_data     <- read_csv(paste("data/test/ipip-neo_test_", 
-                                   tolower(country_current), 
+                                   str_replace_all(tolower(country_current), " ", "_"), 
                                    ".csv", 
                                    sep = ""))
    
@@ -217,7 +217,7 @@ if (!file.exists("output/ipip-neo_uc-esem-model-fit.rds")) {
    
    write_lines(esem_specs,
                paste("output/ffm-esem/ipip-neo_uc-esem-syntax_", 
-                     tolower(country_current),
+                     str_replace_all(tolower(country_current), " ", "_"),
                      ".txt",
                      sep = ""))
    
@@ -236,7 +236,7 @@ if (!file.exists("output/ipip-neo_uc-esem-model-fit.rds")) {
      
      write_rds(esem_std,
                paste("output/ffm-esem/ipip-neo_uc-esem-std-solution_", 
-                     tolower(country_current),
+                     str_replace_all(tolower(country_current), " ", "_"),
                      ".rds",
                      sep = ""))
      
