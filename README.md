@@ -9,6 +9,9 @@ from https://osf.io/tbmh5
 
 The contents of this repository are licensed under the GPL-3.
 
+A preprint for this project is available here:
+https://osf.io/preprints/psyarxiv/vfjcx/
+
 ## Repository Structure
 
 - `R` contains the code for the quantitative analyses and visualizations
