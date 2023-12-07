@@ -293,9 +293,11 @@ bic_summary <- cross_country_bic %>%
 ## Long form BIC data for model comparison
 
 esem_data <- read_rds("output/ipip-neo_ffm-esem-model-fit.rds")
+acq_data <- read_rds("output/ipip-neo_acquiescence-model-fit.rds")
 
 ipip_comparison <- ipip_comparison %>% 
-  left_join(esem_data, by = "country")
+  left_join(esem_data, by = "country") %>% 
+  left_join(acq_data,  by = "country")
 
 test_data_bic_long <- ipip_comparison %>% 
   pivot_longer(
@@ -443,8 +445,8 @@ swarm_bic_model_comparison <-
     size = 1
   ) +
   scale_color_manual(
-    labels = c("Bifactor", "Big Five", "ESEM", "Higher Order", "Network"),
-    values = c("#37123C", "#FE7F2D", "#EFAAC4", "#5995ED", "#619B8A")
+    labels = c("Acquiescence", "Bifactor", "Big Five", "ESEM", "Higher Order", "Network"),
+    values = c("#AD343E", "#37123C", "#FE7F2D", "#EFAAC4", "#5995ED", "#619B8A")
   ) +
   scale_y_discrete(
     labels = country_names
