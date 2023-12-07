@@ -33,6 +33,9 @@ if (!file.exists("output/ipip-neo_model-comparison-data.rds") | !file.exists("ou
   
 }
 
+source("R/ipip-neo-net_ffm-esem.R")
+source("R/ipip-neo-net_acquiescence.R")
+
 # Confirmatory modeling for closer examination
 
 source("R/ipip-neo-net_confirmatory-modeling.R")
